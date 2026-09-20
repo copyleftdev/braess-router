@@ -26,8 +26,10 @@ def write(path, value):
 
 
 def source_paths():
-    paths = [ROOT / n for n in ('Cargo.toml', 'Cargo.lock')]
-    for directory, pattern in [('src', '*.rs'), ('scripts', '*.py'), ('scripts', '*.c'), ('config', '*.json')]:
+    paths = [ROOT / n for n in ('Cargo.toml', 'Cargo.lock', 'README.md', 'CONTRIBUTING.md',
+                               'CHANGELOG.md', 'SECURITY.md', 'LICENSE-MIT', 'LICENSE-APACHE', '.gitignore')]
+    for directory, pattern in [('src', '*.rs'), ('scripts', '*.py'), ('scripts', '*.c'), ('config', '*.json'),
+                               ('eval', '*.json'), ('docs', '*.md'), ('.github', '*.yml')]:
         paths.extend((ROOT / directory).rglob(pattern))
     paths.extend(ROOT / 'eval' / n for n in ('rubric.json', 'rubric.customer-service.json', 'cases.jsonl'))
     return sorted(set(paths))
@@ -84,7 +86,8 @@ def run(output):
         for name, script, binary in [('gateway', 'gateway_e2e.py', 'braess-router'),
                                      ('catalog', 'gateway_catalog_e2e.py', 'braess-router'),
                                      ('readiness', 'gateway_readiness_e2e.py', 'braess-router'),
-                                     ('evaluator', 'custom_eval_e2e.py', 'braess-eval')]:
+                                     ('evaluator', 'custom_eval_e2e.py', 'braess-eval'),
+                                     ('deployment', 'deployment_e2e.py', 'braess-router')]:
             stage(name, [sys.executable, str(ROOT / 'scripts' / script), str(output / name),
                          '--binary', str(target / binary)])
         actual = {str(p.relative_to(ROOT)): digest(p) for p in source_paths()}

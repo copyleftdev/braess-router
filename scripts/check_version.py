@@ -28,7 +28,7 @@ def main():
     value = version(current)
     if args.base:
         changed = git('diff', '--no-renames', '--name-only', args.base, 'HEAD').splitlines()
-        runtime = any(p.startswith(('src/', 'config/', 'eval/')) or p in ('Cargo.toml', 'Cargo.lock') for p in changed)
+        runtime = any(p.startswith(('src/', 'config/', 'eval/')) or p in ('Cargo.toml', 'Cargo.lock', 'scripts/install_service.py') for p in changed)
         if runtime:
             previous = tomllib.loads(git('show', args.base + ':Cargo.toml'))['package']['version']
             if value <= version(previous):

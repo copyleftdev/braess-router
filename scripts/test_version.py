@@ -45,7 +45,7 @@ class VersionPolicy(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_unchanged_runtime_and_inputs_require_bump(self):
-        for path in ('src/lib.rs', 'config/example.json', 'eval/rubric.json'):
+        for path in ('src/lib.rs', 'config/example.json', 'eval/rubric.json', 'scripts/install_service.py'):
             with self.subTest(path=path):
                 self.write(path, '{}\n')
                 self.commit()

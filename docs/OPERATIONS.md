@@ -5,6 +5,8 @@ literal loopback HTTP addresses; Jev live mode uses the fixed HTTPS provider URL
 Do not expose the listener through a public proxy without designing authentication
 and access controls separately.
 
+Use the [deployment guide](DEPLOYMENT.md) to prepare a private user service.
+
 ## Configuration
 
 Start with `config/gateway.mock.json` or `config/gateway.live.example.json`.
@@ -73,7 +75,8 @@ request deadline; permanently stalled storage has no proven shutdown bound.
 
 ## Acceptance still pending
 
-Broader provider boundary coverage, operational recovery/migration, deployment
-packaging and a frozen v1 acceptance run remain open. The small captured provider
+Broader provider boundary coverage, operational recovery/migration and a frozen v1
+acceptance run remain open. Deployment packaging has synthetic lifecycle checks;
+host and workload acceptance still require representative validation. The small captured provider
 corpus in the development workspace does not establish a universally accurate mock.
 Synthetic CI checks establish local behavior, not production semantic quality.
