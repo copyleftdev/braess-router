@@ -27,15 +27,17 @@ def main():
     current = tomllib.loads(Path('Cargo.toml').read_text())['package']['version']
     value = version(current)
     if args.base:
-        changed = git('diff', '--name-only', args.base, 'HEAD').splitlines()
-        runtime = any(p.startswith('src/') or p in ('Cargo.toml', 'Cargo.lock') for p in changed)
+        changed = git('diff', '--no-renames', '--name-only', args.base, 'HEAD').splitlines()
+        runtime = any(p.startswith(('src/', 'config/', 'eval/')) or p in ('Cargo.toml', 'Cargo.lock') for p in changed)
         if runtime:
             previous = tomllib.loads(git('show', args.base + ':Cargo.toml'))['package']['version']
             if value <= version(previous):
-                raise ValueError('Runtime/dependency changes require a greater package version')
+                raise ValueError('Runtime/dependency/configuration changes require a greater package version')
             if 'CHANGELOG.md' not in changed:
-                raise ValueError('Runtime/dependency changes require a changelog entry')
+                raise ValueError('Runtime/dependency/configuration changes require a changelog entry')
     if args.tag:
+        if not re.search(r'^## ' + re.escape(current) + r'\s*$', Path('CHANGELOG.md').read_text(), re.MULTILINE):
+            raise ValueError('Release requires a changelog heading for ' + current)
         if args.tag != 'v' + current:
             raise ValueError('Release tag must equal v' + current)
         if git('rev-parse', args.tag + '^{commit}') != git('rev-parse', 'HEAD'):
