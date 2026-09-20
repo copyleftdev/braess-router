@@ -9,7 +9,7 @@ not a claim of production accuracy or multi-replica coordination.
 
 ## Try it
 
-Requires Rust 1.97.1 and Python 3 on Linux.
+Requires Rust 1.97.1 and Python 3.11+ on Linux.
 
 ```sh
 cargo build --locked --release
@@ -39,6 +39,7 @@ Configure the endpoints first. For live Jev, use
 - `/health` reports liveness; `/ready` reports local capacity, not upstream health.
 - No distributed quota, public-network listener, or workload accuracy guarantee.
 
+See [single-server deployment](docs/DEPLOYMENT.md).
 Read the [operator guide](docs/OPERATIONS.md), [development guide](CONTRIBUTING.md),
 and [release process](docs/RELEASING.md). CI uses synthetic fixtures without API keys.
 

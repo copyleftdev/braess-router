@@ -1,14 +1,15 @@
 [package]
 name = "braess-router"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2024"
+rust-version = "1.97.1"
 publish = ["crates-io"]
 autobins = false
 description = "Bounded semantic routing with Jev and Poise"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/copyleftdev/braess-router"
 readme = "README.md"
-include = ["src/**", "eval/*.json", "eval/cases.jsonl", "config/*.json", "README.md", "docs/**", "LICENSE-*", "Cargo.lock"]
+include = ["src/**", "scripts/install_service.py", "eval/*.json", "eval/cases.jsonl", "config/*.json", "README.md", "docs/**", "LICENSE-*", "Cargo.lock"]
 default-run = "braess-router"
 
 [dependencies]

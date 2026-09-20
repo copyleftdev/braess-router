@@ -1,6 +1,6 @@
 # Contributing
 
-Use Rust 1.97.1, rustfmt, Clippy and Python 3 on Linux.
+Use Rust 1.97.1, rustfmt, Clippy and Python 3.11+ and systemd-analyze on Linux.
 
 ```sh
 cargo fetch --locked

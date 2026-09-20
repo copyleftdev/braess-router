@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.2
+
+- Add a fresh-install user service bundle with private durable state.
+- Verify installed startup, shutdown, restart and conservative uncertainty accounting.
+- Declare the tested Rust toolchain requirement.
+
 ## 0.1.0-alpha.1
 
 - Initial public packaging of the single-server semantic router.
