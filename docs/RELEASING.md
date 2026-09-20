@@ -5,7 +5,8 @@
 3. Push the tag to trigger Release. It repeats validation and verifies packaging
    before requesting the `crates-io` environment and publishing.
 
-The workflow validates that the tag matches Cargo.toml, belongs to main, and passes
+Before release approval, CI validates that the tag matches Cargo.toml and a changelog
+heading, belongs to main, and passes
 all checks. Concurrent releases are serialized. crates.io prevents overwriting an
 existing version. Keep the initial package marked alpha until v1 acceptance closes.
 
