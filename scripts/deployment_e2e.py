@@ -127,6 +127,34 @@ def run(output, binary, systemd=False):
         clean = e.request(url + '/status')['body']
         e.require(clean['jev_calls_reserved'] == 1 and clean['request_journal']['pending'] == 0,
                   'clean restart did not preserve completed accounting')
+        stop()
+        active_config = destination / 'config/gateway.json'
+        next_config = destination / 'config/next.json'
+        revised = json.loads(active_config.read_text())
+        revised['tracking_limit'] += 1
+        next_config.write_text(json.dumps(revised))
+        tool = str(destination / 'bin/braess-journal-compact')
+        archive = destination / 'state/pre-migration.journal'
+        checkpoint = destination / 'state/migration.checkpoint'
+        budget_path = destination / 'state/calls.budget'
+        journal_path = destination / 'state/requests.journal'
+        budget_before = budget_path.read_bytes()
+        journal_before = journal_path.read_bytes()
+        inspected = json.loads(command(tool, str(active_config), '--inspect'))
+        e.require(inspected['budget_used'] == 1 and inspected['state']['pending'] == 0,
+                  'offline inspection disagrees with clean restart')
+        migration = json.loads(command(tool, str(active_config), str(archive), str(checkpoint),
+                                       '--migrate-to', str(next_config)))
+        e.require(migration['migrated'] and archive.read_bytes() == journal_before,
+                  'migration lost original journal evidence')
+        e.require(budget_path.read_bytes() == budget_before, 'migration changed spent budget')
+        old = subprocess.run([tool, str(active_config), '--inspect'], capture_output=True, timeout=5)
+        e.require(old.returncode != 0, 'old configuration still opens migrated scope')
+        new = json.loads(command(tool, str(next_config), '--inspect'))
+        e.require(new['budget_used'] == 1 and new['state'] == inspected['state'],
+                  'migration changed completed counters')
+        os.replace(next_config, active_config)
+        start()
         fixtures.started.clear()
         fixtures.release.clear()
         timeout = e.request(url + '/route', {'request': 'hold'})
@@ -150,9 +178,23 @@ def run(output, binary, systemd=False):
                   'restart bypassed unresolved admission charge')
         e.require(len(fixtures.events) == events, 'blocked route reached upstream')
         stop()
+        revised['tracking_limit'] += 1
+        next_config.write_text(json.dumps(revised))
+        budget_before = budget_path.read_bytes()
+        journal_before = journal_path.read_bytes()
+        refused_archive = destination / 'state/refused.archive'
+        refused_checkpoint = destination / 'state/refused.checkpoint'
+        refused = subprocess.run([tool, str(active_config), str(refused_archive), str(refused_checkpoint),
+                                  '--migrate-to', str(next_config)], capture_output=True, timeout=5)
+        e.require(refused.returncode != 0 and b'unresolved' in refused.stderr,
+                  'scope migration accepted unresolved work')
+        e.require(not refused_archive.exists() and not refused_checkpoint.exists(),
+                  'refused migration created artifacts')
+        e.require(budget_path.read_bytes() == budget_before and journal_path.read_bytes() == journal_before,
+                  'refused migration changed durable state')
         result = {'passed': True, 'systemd': systemd, 'live_provider_calls': 0, 'environment_file_verified': systemd,
                   'checks': ['private installation', 'reinstall refusal', 'existing-state refusal',
-                             'service syntax', 'duplicate owner refusal', 'in-flight SIGTERM drain',
+                             'service syntax', 'quiescent migration', 'read-only inspection', 'uncertain migration refusal', 'duplicate owner refusal', 'in-flight SIGTERM drain',
                              'completed accounting restart', 'unresolved accounting after forced death', 'no blocked dispatch'],
                   'clean_restart': clean, 'uncertain_restart': uncertain, 'readiness': ready}
     finally:

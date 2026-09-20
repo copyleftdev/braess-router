@@ -54,7 +54,8 @@ The unit restarts on failure with a five-second delay and a three-starts-per-min
 limit. It sends SIGTERM on stop and allows 30 seconds before forced termination.
 A forced stop may preserve unresolved journal entries that consume admission after
 restart. It does not establish upstream cancellation or machine power-loss safety.
-Follow the [operations and recovery constraints](OPERATIONS.md) before resuming work.
+Follow the [operations constraints](OPERATIONS.md) and
+[offline inspection/migration procedure](RECOVERY.md) before resuming work.
 
 To unregister, stop the service first, then run `systemctl --user disable
 braess-router.service` and `systemctl --user daemon-reload`. State files remain.
