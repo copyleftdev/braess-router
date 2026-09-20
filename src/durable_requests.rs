@@ -230,12 +230,21 @@ impl DurableRequests {
     /// Caller owns offline replacement policy; any failed export leaves its target
     /// for inspection and must not be published. Cache locks never span disk I/O.
     pub fn checkpoint_to(&self, destination: &Path, scope: &str) -> io::Result<()> {
+        self.export_checkpoint(destination, scope, false)
+    }
+    /// Export to a new scope only when every begun attempt has a validated completion.
+    /// This preserves counters and IDs; it never reconciles or discards uncertainty.
+    /// The caller must exclude gateway startup throughout offline publication.
+    pub fn quiescent_checkpoint_to(&self, destination: &Path, scope: &str) -> io::Result<()> {
+        self.export_checkpoint(destination, scope, true)
+    }
+    fn export_checkpoint(&self, destination: &Path, scope: &str, migrate: bool) -> io::Result<()> {
         let _writer = self
             .writer
             .lock()
             .map_err(|_| io::Error::other("request journal writer poisoned"))?;
         self.check_healthy()?;
-        if scope != self.scope {
+        if !valid_scope(scope) || (!migrate && scope != self.scope) {
             return Err(invalid("request journal checkpoint scope mismatch"));
         }
         let (begun, completed, pending) = {
@@ -245,6 +254,9 @@ impl DurableRequests {
                 .map_err(|_| io::Error::other("request journal cache poisoned"))?;
             (cache.begun, cache.completed, cache.unresolved.len())
         };
+        if migrate && pending != 0 {
+            return Err(invalid("cannot migrate a journal with unresolved attempts"));
+        }
         if completed.checked_add(pending as u64) != Some(begun) {
             return Err(invalid("checkpoint source totals do not conserve requests"));
         }

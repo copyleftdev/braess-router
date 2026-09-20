@@ -1,5 +1,7 @@
 # Braess Router
 
+[![Tip my tokens](https://tokentip.to/badge/copyleftdev.svg?logo=1)](https://tokentip.to/@copyleftdev)
+
 A bounded Rust semantic router powered by **Jev** and **Poise**.
 Jev selects a handler from your catalog; Poise selects an endpoint in its pool.
 Uncertain decisions return a local fallback.

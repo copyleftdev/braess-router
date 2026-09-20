@@ -16,9 +16,35 @@ fn compact(
     rubric: &Rubric,
     archive: &Path,
     checkpoint: &Path,
+    stage: impl FnMut(&str) -> std::io::Result<()>,
+) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    rewrite(config, rubric, None, archive, checkpoint, stage)
+}
+fn rewrite(
+    config: &Config,
+    rubric: &Rubric,
+    target: Option<(&Config, &Rubric)>,
+    archive: &Path,
+    checkpoint: &Path,
     mut stage: impl FnMut(&str) -> std::io::Result<()>,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let scope = config.request_journal_scope(rubric)?;
+    let (target_scope, target_limit) = if let Some((next, next_rubric)) = target {
+        if config.budget_path != next.budget_path
+            || config.request_journal_path != next.request_journal_path
+            || config.max_jev_calls != next.max_jev_calls
+        {
+            return Err(
+                "migration must preserve budget path, journal path and maximum calls".into(),
+            );
+        }
+        (
+            next.request_journal_scope(next_rubric)?,
+            next.admission_limit,
+        )
+    } else {
+        (scope.clone(), config.admission_limit)
+    };
     let source = config
         .request_journal_path
         .as_ref()
@@ -36,14 +62,20 @@ fn compact(
     let journal = DurableRequests::open(source, &scope, config.admission_limit)?;
     let before = journal.snapshot();
     let old_bytes = std::fs::metadata(source)?.len();
-    journal.checkpoint_to(checkpoint, &scope)?;
+    if target.is_some() {
+        journal.quiescent_checkpoint_to(checkpoint, &target_scope)?;
+    } else {
+        journal.checkpoint_to(checkpoint, &scope)?;
+    }
     stage("checkpoint_synced")?;
     // Explicit new archive link; never overwrite an existing archive.
     std::fs::hard_link(source, archive)?;
     File::open(&directory)?.sync_all()?;
     stage("archive_synced")?;
-    let checkpoint_owner = DurableRequests::open(checkpoint, &scope, config.admission_limit)?;
-    if checkpoint_owner.snapshot() != before {
+    let checkpoint_owner = DurableRequests::open(checkpoint, &target_scope, target_limit)?;
+    let mut expected = before.clone();
+    expected["per_endpoint_limit"] = serde_json::json!(target_limit);
+    if checkpoint_owner.snapshot() != expected {
         return Err("checkpoint replay differs from source".into());
     }
     let new_bytes = std::fs::metadata(checkpoint)?.len();
@@ -52,28 +84,66 @@ fn compact(
     File::open(&directory)?.sync_all().map_err(|error| format!("journal replaced; directory sync failed; inspect journal and archive before retry: {error}"))?;
     stage("directory_synced")?;
     Ok(
-        serde_json::json!({"compacted":true,"old_bytes":old_bytes,"new_bytes":new_bytes,
+        serde_json::json!({"compacted":true,"migrated":target.is_some(),"old_bytes":old_bytes,"new_bytes":new_bytes,
         "state":before,"archive":archive,"journal":source}),
+    )
+}
+
+fn inspect(
+    config: &Config,
+    rubric: &Rubric,
+) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let scope = config.request_journal_scope(rubric)?;
+    let budget = DurableBudget::open(
+        config.budget_path.as_ref().ok_or("budget_path required")?,
+        config.max_jev_calls,
+    )?;
+    let journal = DurableRequests::open(
+        config
+            .request_journal_path
+            .as_ref()
+            .ok_or("request_journal_path required")?,
+        &scope,
+        config.admission_limit,
+    )?;
+    Ok(
+        serde_json::json!({"inspected":true,"budget_used":budget.used(),"max_jev_calls":config.max_jev_calls,"state":journal.snapshot()}),
     )
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().collect();
-    if args.len() != 4 {
-        return Err("usage: braess-journal-compact CONFIG ARCHIVE_PATH CHECKPOINT_PATH".into());
+    if args.len() != 4
+        && !(args.len() == 6 && args[4] == "--migrate-to")
+        && !(args.len() == 3 && args[2] == "--inspect")
+    {
+        return Err("usage: braess-journal-compact CONFIG ARCHIVE_PATH CHECKPOINT_PATH [--migrate-to NEW_CONFIG]; or CONFIG --inspect".into());
     }
     let config: Config = serde_json::from_slice(&std::fs::read(&args[1])?)?;
     let rubric: Rubric = serde_json::from_slice(&std::fs::read(&config.rubric_path)?)?;
-    println!(
-        "{}",
+    let result = if args.len() == 3 {
+        inspect(&config, &rubric)?
+    } else if args.len() == 6 {
+        let next: Config = serde_json::from_slice(&std::fs::read(&args[5])?)?;
+        let next_rubric: Rubric = serde_json::from_slice(&std::fs::read(&next.rubric_path)?)?;
+        rewrite(
+            &config,
+            &rubric,
+            Some((&next, &next_rubric)),
+            Path::new(&args[2]),
+            Path::new(&args[3]),
+            |_| Ok(()),
+        )?
+    } else {
         compact(
             &config,
             &rubric,
             Path::new(&args[2]),
             Path::new(&args[3]),
-            |_| Ok(())
+            |_| Ok(()),
         )?
-    );
+    };
+    println!("{result}");
     Ok(())
 }
 
@@ -387,5 +457,161 @@ mod tests {
         );
         drop(owner);
         fixture.assert_preserved();
+    }
+    fn drained() -> Fixture {
+        let mut fixture = Fixture::new();
+        let journal = DurableRequests::open(fixture.source(), &fixture.scope, 4).unwrap();
+        journal.complete(1).unwrap();
+        journal.complete(52).unwrap();
+        fixture.before = journal.snapshot();
+        drop(journal);
+        fixture.source_bytes = std::fs::read(fixture.source()).unwrap();
+        fixture
+    }
+
+    #[test]
+    fn migration_preserves_completed_history_budget_and_next_id() {
+        let fixture = drained();
+        let mut next = fixture.config.clone();
+        next.admission_limit = 2;
+        next.jev_url = "http://127.0.0.1:19000/jev".into();
+        let next_scope = next.request_journal_scope(&fixture.rubric).unwrap();
+        let result = rewrite(
+            &fixture.config,
+            &fixture.rubric,
+            Some((&next, &fixture.rubric)),
+            &fixture.archive(),
+            &fixture.checkpoint(),
+            |_| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(result["migrated"], true);
+        assert_eq!(
+            std::fs::read(fixture.archive()).unwrap(),
+            fixture.source_bytes
+        );
+        assert_eq!(
+            std::fs::read(next.budget_path.as_ref().unwrap()).unwrap(),
+            fixture.budget_bytes
+        );
+        assert!(DurableRequests::open(fixture.source(), &fixture.scope, 4).is_err());
+        let replay = DurableRequests::open(fixture.source(), &next_scope, 2).unwrap();
+        assert_eq!(replay.snapshot()["begun"], 52);
+        assert_eq!(replay.snapshot()["completed"], 52);
+        assert_eq!(replay.snapshot()["pending"], 0);
+        assert_eq!(replay.begin("jev").unwrap(), 53);
+    }
+
+    #[test]
+    fn migration_refuses_uncertainty_without_creating_files() {
+        let fixture = Fixture::new();
+        let mut next = fixture.config.clone();
+        next.admission_limit = 2;
+        let error = rewrite(
+            &fixture.config,
+            &fixture.rubric,
+            Some((&next, &fixture.rubric)),
+            &fixture.archive(),
+            &fixture.checkpoint(),
+            |_| Ok(()),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("unresolved"));
+        assert!(!fixture.archive().exists());
+        assert!(!fixture.checkpoint().exists());
+        fixture.assert_preserved();
+    }
+
+    #[test]
+    fn migration_refuses_budget_or_journal_replacement() {
+        for field in ["budget", "journal", "maximum"] {
+            let fixture = drained();
+            let mut next = fixture.config.clone();
+            match field {
+                "budget" => next.budget_path = Some(fixture.directory.join("other-budget")),
+                "journal" => {
+                    next.request_journal_path = Some(fixture.directory.join("other-journal"))
+                }
+                _ => next.max_jev_calls += 1,
+            }
+            assert!(
+                rewrite(
+                    &fixture.config,
+                    &fixture.rubric,
+                    Some((&next, &fixture.rubric)),
+                    &fixture.archive(),
+                    &fixture.checkpoint(),
+                    |_| Ok(())
+                )
+                .is_err()
+            );
+            assert!(!fixture.archive().exists());
+            assert!(!fixture.checkpoint().exists());
+            fixture.assert_preserved();
+        }
+    }
+
+    #[test]
+    fn migration_fault_boundaries_preserve_one_replayable_scope_and_budget_lock() {
+        for fail in [
+            "checkpoint_synced",
+            "archive_synced",
+            "replaced",
+            "directory_synced",
+        ] {
+            let fixture = drained();
+            let mut next = fixture.config.clone();
+            next.admission_limit = 2;
+            let next_scope = next.request_journal_scope(&fixture.rubric).unwrap();
+            let result = rewrite(
+                &fixture.config,
+                &fixture.rubric,
+                Some((&next, &fixture.rubric)),
+                &fixture.archive(),
+                &fixture.checkpoint(),
+                |stage| {
+                    assert!(
+                        DurableBudget::open(next.budget_path.as_ref().unwrap(), next.max_jev_calls)
+                            .is_err()
+                    );
+                    if stage == fail {
+                        Err(io::Error::other("injected migration fault"))
+                    } else {
+                        Ok(())
+                    }
+                },
+            );
+            assert!(result.is_err());
+            let replaced = matches!(fail, "replaced" | "directory_synced");
+            let (scope, limit) = if replaced {
+                (&next_scope, 2)
+            } else {
+                (&fixture.scope, 4)
+            };
+            let replay = DurableRequests::open(fixture.source(), scope, limit).unwrap();
+            assert_eq!(replay.snapshot()["completed"], 52);
+            assert_eq!(replay.snapshot()["pending"], 0);
+            assert_eq!(
+                std::fs::read(next.budget_path.as_ref().unwrap()).unwrap(),
+                fixture.budget_bytes
+            );
+            if fail != "checkpoint_synced" {
+                assert_eq!(
+                    std::fs::read(fixture.archive()).unwrap(),
+                    fixture.source_bytes
+                );
+            }
+        }
+    }
+    #[test]
+    fn offline_inspection_preserves_bytes_and_refuses_active_owner() {
+        let fixture = Fixture::new();
+        let report = inspect(&fixture.config, &fixture.rubric).unwrap();
+        assert_eq!(report["budget_used"], 2);
+        assert_eq!(report["state"], fixture.before);
+        fixture.assert_preserved();
+        let _owner =
+            DurableBudget::open(fixture.config.budget_path.as_ref().unwrap(), 100).unwrap();
+        assert!(inspect(&fixture.config, &fixture.rubric).is_err());
     }
 }

@@ -44,7 +44,8 @@ after fully validated responses. Exclusive locks prevent concurrent state owners
 
 Unresolved requests continue consuming admission capacity after restart. TTL expiry,
 a timeout, socket EOF, or a process restart is not proof of upstream completion.
-There is currently no supported reconciliation command or journal-scope migration.
+There is currently no supported reconciliation command. Scope migration is supported
+only for a fully completed journal; see [offline recovery](RECOVERY.md).
 Do not delete state to restore capacity. Preserve it and stop admission while
 investigating the upstream outcome. This recovery limitation remains alpha work.
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+- Add offline journal migration for fully completed histories, preserving budget and request IDs.
+- Refuse scope migration while any attempt remains unresolved.
+- Add read-only offline inspection for recovery diagnosis.
+
 ## 0.1.0-alpha.2
 
 - Add a fresh-install user service bundle with private durable state.
