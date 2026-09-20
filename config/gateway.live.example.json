@@ -1,0 +1,24 @@
+{
+  "bind": "127.0.0.1:8080",
+  "mode": "live",
+  "jev_url": "https://api.typesafe.ai/v1/systemone",
+  "rubric_path": "eval/rubric.json",
+  "deadline_ms": 10000,
+  "max_request_bytes": 16384,
+  "max_response_bytes": 65536,
+  "admission_limit": 2,
+  "tracking_limit": 128,
+  "uncertainty_ttl_ms": 1000,
+  "max_jev_calls": 24,
+  "handlers": {
+    "general": [
+      "http://127.0.0.1:8082/general"
+    ],
+    "coding": [
+      "http://127.0.0.1:8082/coding"
+    ],
+    "reasoning": [
+      "http://127.0.0.1:8082/reasoning"
+    ]
+  }
+}

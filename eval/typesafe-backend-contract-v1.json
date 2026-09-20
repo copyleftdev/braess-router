@@ -1,0 +1,34 @@
+{
+  "version": "typesafe-backend-contract-v1",
+  "scope": "public documentation assessment; not a verified server implementation",
+  "role": "semantic decision service",
+  "generation_provider": null,
+  "endpoint": "https://api.typesafe.ai/v1/systemone",
+  "model": "jev-1.13.0",
+  "response": "structured JSON evaluation result",
+  "documented_client_abort": true,
+  "documented_server_cancel_endpoint": null,
+  "documented_server_cancel_acknowledgment": null,
+  "documented_request_status_lookup": null,
+  "documented_disconnect_stops_compute": null,
+  "documented_cancelled_request_billing": null,
+  "documented_global_occupancy_observation": null,
+  "unknown_encoding": "null means no guarantee found in reviewed references, not proven absent",
+  "accounting_decisions": {
+    "validated_complete_response": "evaluation_result_received; not a measurement of provider occupancy",
+    "headers_only": "local_active",
+    "timeout_after_possible_dispatch": "unconfirmed",
+    "client_abort_after_possible_dispatch": "unconfirmed",
+    "transport_error_after_possible_dispatch": "unconfirmed",
+    "truncated_or_invalid_response": "result_invalid; backend completion unconfirmed",
+    "http_error": "attempt_failed; no general provider-capacity inference",
+    "uncertainty_expiry": "expired_unconfirmed; never confirmed_completion",
+    "proven_not_dispatched": "not_sent; no backend uncertainty"
+  },
+  "sources": [
+    "https://docs.typesafe.ai/api",
+    "https://docs.typesafe.ai/sdk/javascript/api/interfaces/RequestOptions",
+    "https://docs.typesafe.ai/sdk/javascript/api/classes/TypeSafeClient",
+    "https://docs.typesafe.ai/sdk/python/api/clients/async"
+  ]
+}

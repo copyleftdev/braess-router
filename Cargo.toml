@@ -1,0 +1,45 @@
+[package]
+name = "braess-router"
+version = "0.1.0-alpha.1"
+edition = "2024"
+publish = ["crates-io"]
+autobins = false
+description = "Bounded semantic routing with Jev and Poise"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/copyleftdev/braess-router"
+readme = "README.md"
+include = ["src/**", "eval/*.json", "eval/cases.jsonl", "config/*.json", "README.md", "docs/**", "LICENSE-*", "Cargo.lock"]
+default-run = "braess-router"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+poise-core = "=0.1.1"
+rand = "=0.10.2"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "net", "io-util", "signal", "macros"] }
+
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[[bin]]
+name = "braess-router"
+path = "src/bin/braess-router.rs"
+
+[[bin]]
+name = "braess-eval"
+path = "src/main.rs"
+
+[[bin]]
+name = "braess-budget-init"
+path = "src/bin/braess-budget-init.rs"
+
+[[bin]]
+name = "braess-journal-init"
+path = "src/bin/braess-journal-init.rs"
+
+[[bin]]
+name = "braess-journal-compact"
+path = "src/bin/braess-journal-compact.rs"

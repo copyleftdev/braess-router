@@ -1,0 +1,137 @@
+{
+  "version": "selection-sim-v3-admission",
+  "requests_per_run": 2000,
+  "seeds": [
+    11,
+    29,
+    47,
+    83,
+    131,
+    197,
+    263,
+    347,
+    401,
+    443,
+    499,
+    557,
+    613,
+    677,
+    739,
+    809
+  ],
+  "deadline_us": 50000,
+  "capacity_per_backend": 16,
+  "scenarios": [
+    {
+      "name": "homogeneous",
+      "service_us": [
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000
+      ],
+      "arrival_gap_us": 1800,
+      "burst_gap_us": null,
+      "clients": 1,
+      "observation_refresh_us": 0,
+      "slowdown_at_us": null
+    },
+    {
+      "name": "heterogeneous",
+      "service_us": [
+        8000,
+        8000,
+        8000,
+        8000,
+        32000,
+        32000,
+        32000,
+        32000
+      ],
+      "arrival_gap_us": 2000,
+      "burst_gap_us": null,
+      "clients": 1,
+      "observation_refresh_us": 0,
+      "slowdown_at_us": null
+    },
+    {
+      "name": "burst",
+      "service_us": [
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000
+      ],
+      "arrival_gap_us": 2200,
+      "burst_gap_us": 400,
+      "clients": 1,
+      "observation_refresh_us": 0,
+      "slowdown_at_us": null
+    },
+    {
+      "name": "stale_multiclient",
+      "service_us": [
+        8000,
+        8000,
+        8000,
+        8000,
+        32000,
+        32000,
+        32000,
+        32000
+      ],
+      "arrival_gap_us": 2000,
+      "burst_gap_us": null,
+      "clients": 8,
+      "observation_refresh_us": 50000,
+      "slowdown_at_us": null
+    },
+    {
+      "name": "slowdown",
+      "service_us": [
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000,
+        10000
+      ],
+      "arrival_gap_us": 1800,
+      "burst_gap_us": null,
+      "clients": 1,
+      "observation_refresh_us": 0,
+      "slowdown_at_us": 1800000
+    }
+  ],
+  "latency": {
+    "default_rtt_us": 10000,
+    "half_lives_us": [
+      500000
+    ]
+  },
+  "admission": {
+    "limits": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "selectors": [
+      "least_inflight",
+      "least_peak_500000"
+    ],
+    "primary_limit": 4,
+    "reference_limit": 16
+  }
+}

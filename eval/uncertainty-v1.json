@@ -1,0 +1,12 @@
+{
+  "version": "uncertainty-v1",
+  "requests": 1000,
+  "cap": 4,
+  "deadline_us": 50000,
+  "cancel_after_us": 5000,
+  "cancel_probability": 0.35,
+  "primary_ttl_us": 100000,
+  "policies": {"immediate": 0, "retain_25000": 25000, "retain_100000": 100000, "retain_250000": 250000},
+  "seeds": [11,29,47,83,131,197,263,347,401,443,499,557,613,677,739,809],
+  "scenarios": ["healthy","delayed","missing","burst","slowdown","long_missing"]
+}

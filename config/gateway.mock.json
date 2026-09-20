@@ -1,0 +1,18 @@
+{
+  "bind": "127.0.0.1:8080",
+  "mode": "mock",
+  "jev_url": "http://127.0.0.1:8081/v1/systemone",
+  "rubric_path": "eval/rubric.json",
+  "deadline_ms": 2000,
+  "max_request_bytes": 16384,
+  "max_response_bytes": 65536,
+  "admission_limit": 8,
+  "tracking_limit": 128,
+  "uncertainty_ttl_ms": 1000,
+  "max_jev_calls": 1000,
+  "handlers": {
+    "general": ["http://127.0.0.1:8082/general"],
+    "coding": ["http://127.0.0.1:8082/coding"],
+    "reasoning": ["http://127.0.0.1:8082/reasoning"]
+  }
+}
