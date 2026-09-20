@@ -51,6 +51,14 @@ class VersionPolicy(unittest.TestCase):
                 self.commit()
                 self.check('--base', self.base, error='greater package version')
 
+    def test_runtime_moved_to_docs_requires_bump(self):
+        self.write('src/lib.rs', '// runtime code\n')
+        self.commit()
+        base = self.git('rev-parse', 'HEAD')
+        self.git('mv', 'src/lib.rs', 'README.md')
+        self.commit()
+        self.check('--base', base, error='greater package version')
+
     def test_docs_only_needs_no_bump(self):
         self.write('README.md', 'Documentation\n')
         self.commit()
