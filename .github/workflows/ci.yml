@@ -32,6 +32,7 @@ jobs:
             python3 scripts/check_version.py
           fi
       - run: python3 scripts/test_version.py
+      - run: python3 scripts/test_evidence.py
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,10 +43,13 @@ jobs:
         run: python3 scripts/check_version.py --tag "$RELEASE_TAG"
       - run: cargo fetch --locked
       - run: python3 scripts/validate_local.py artifacts/ci
+      - run: python3 scripts/verify_evidence.py artifacts/ci --report artifacts/evidence.json
       - run: cargo package --locked
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: validation-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/ci
+          path: |
+            artifacts/ci
+            artifacts/evidence.json
           retention-days: 14

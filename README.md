@@ -8,6 +8,7 @@ Uncertain decisions return a local fallback.
 
 **Alpha · single server · loopback only.** This is a public development release,
 not a claim of production accuracy or multi-replica coordination.
+[Acceptance requirements](docs/ACCEPTANCE.md) track the remaining release work.
 
 ## Try it
 
