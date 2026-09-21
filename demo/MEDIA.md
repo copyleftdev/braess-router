@@ -116,6 +116,11 @@ and provide metadata for a future media-preparation visualization.
 
 ## Integration still needed
 
+The [direct-image transport experiment](VISION.md) measures actual PNG and
+multipart request sizes and specifies the proposed reference-based handler
+boundary. It constructs private request specimens offline; direct vision
+dispatch is not implemented by that experiment.
+
 The native prefix begins in a different part of the archive from the existing
 40-document text sample. Join by verified native/text IDs before showing family
 context; do not imply these are the same reviewed documents. Image-region
