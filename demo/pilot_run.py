@@ -10,6 +10,7 @@ import time
 import urllib.request
 from budget import Budget, usd_units, usd_string
 from fleet import durable_write, run as run_fleet
+from corpus import private_write
 from pilot_plan import verify
 from recording import canonical, digest
 
@@ -39,6 +40,35 @@ def preflight(root,binaries,allowance):
             raise ValueError('expected executable unavailable')
         hashes[name]=digest(path.read_bytes())
     return manifest,hashes
+
+
+def readiness(directory,binaries,output):
+    """Write an offline snapshot, without claiming an attempt or reading keys."""
+    root=Path(directory).resolve()
+    manifest=verify(root)
+    manifest,binary_hashes=preflight(root,binaries,manifest['total_reservation_usd'])
+    target=Path(output).resolve()
+    if target==root or root in target.parents:
+        raise ValueError('readiness output must stay outside the one-shot plan')
+    report={'schema_version':1,'status':'offline_preflight_passed_not_authorized',
+            'observed_at':datetime.now(timezone.utc).isoformat(),
+            'plan_sha256':digest((root/'plan.json').read_bytes()),
+            'configuration_sha256':manifest['files'],'binary_sha256':binary_hashes,
+            'coordinator_source_sha256':{
+                name:digest((Path(__file__).parent/name).read_bytes()) for name in SOURCES},
+            'pricing_expires_at':manifest['expires_at'],
+            'total_reservation_usd':manifest['total_reservation_usd'],
+            'task_count':manifest['task_count'],'workers':manifest['workers'],
+            'max_jev_calls':manifest['max_jev_calls'],
+            'max_generation_calls':manifest['max_generation_calls'],
+            'automatic_retries':manifest['automatic_retries'],
+            'selected_allowance_usd':None,'provider_calls':0,
+            'credentials_checked':False,'ports_checked':False,
+            'services_started':False,'provider_contract_verified':False,
+            'limits':['Snapshot only; execution revalidates the plan and binaries.',
+                      'No spending authorization or provider-access validation.']}
+    private_write(target,canonical(report)+b'\n')
+    return report
 
 
 def ports_available():
@@ -128,11 +158,14 @@ def execute(directory,binaries,*,allowance_usd):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('plan',type=Path);p.add_argument('binaries',type=Path)
-    p.add_argument('--allowance-usd',required=True)
+    action=p.add_mutually_exclusive_group(required=True)
+    action.add_argument('--allowance-usd')
+    action.add_argument('--preflight-output',type=Path,help='Write credential-free offline readiness outside the plan; do not execute')
     a=p.parse_args()
     try:
-        result=execute(a.plan,a.binaries,allowance_usd=a.allowance_usd)
+        result=(readiness(a.plan,a.binaries,a.preflight_output) if a.preflight_output
+                else execute(a.plan,a.binaries,allowance_usd=a.allowance_usd))
         print(canonical(result).decode())
     except Exception:
         # Provider logs/captures stay private. Exception strings are not an output channel.
-        raise SystemExit('pilot did not complete; inspect private execution state before any further action') from None
+        raise SystemExit('pilot action did not complete; inspect the plan and any private execution state before further action') from None

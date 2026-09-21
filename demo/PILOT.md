@@ -72,6 +72,28 @@ bindings even after manifest rehashing, stale evidence, and rejection of a batch
 that is not exactly two fully prepared tasks.
 
 
+## Check current readiness without execution
+
+```sh
+python3 demo/pilot_run.py PLAN_DIRECTORY BUILT_BINARY_DIRECTORY \
+  --preflight-output NEW_PRIVATE_READINESS.json
+```
+
+This mode needs no credentials or allowance. It verifies the source, pricing,
+configuration and unattempted plan, then hashes all four current executables and
+coordinator sources. Its private, create-only report records the reservation,
+pricing expiry and call limits. Place the report outside the one-shot plan;
+readiness does not create execution claims, initialize journals, bind ports,
+start processes or make provider calls. It does not establish provider access,
+model quality or spending authorization. The execution path still performs its
+own checks immediately before dispatch; a saved readiness report cannot bypass
+those checks.
+
+The current local binaries passed this offline check with the two-document plan.
+The real plan remains unattempted, with no selected allowance. Tests verify that
+readiness leaves plan bytes unchanged, refuses an attempted plan, protects its
+output from overwrite and never invokes process startup or endpoint checks.
+
 ## Execute once after allowance selection
 
 ```sh

@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch,MagicMock
 import test_pilot_plan as plan_fixture
 from budget import Budget
-from pilot_run import execute,preflight,child_environment,BINARIES
+from pilot_run import execute,preflight,child_environment,BINARIES,readiness
 from recording import canonical
 
 
@@ -27,6 +27,28 @@ class PilotRunTests(unittest.TestCase):
             path=self.binaries/name;path.write_bytes(b'coordinator test placeholder; never executed');path.chmod(0o700)
         self.env={'PATH':os.environ['PATH'],'TYPESAFE_API_KEY':'test-typesafe','OPENROUTER_API_KEY':'test-openrouter',
                   'API_KEY':'must-not-leak','HTTP_PROXY':'must-not-leak','UNRELATED_SECRET':'must-not-leak'}
+
+    def test_readiness_never_accesses_credentials_starts_services_or_claims_plan(self):
+        output=self.root/'readiness.json'
+        before={p.name:p.read_bytes() for p in self.output.iterdir()}
+        with patch.dict(os.environ,{},clear=True),patch('pilot_run.ports_available') as ports, \
+             patch('pilot_run.subprocess.run') as commands,patch('pilot_run.subprocess.Popen') as processes:
+            report=readiness(self.output,self.binaries,output)
+        ports.assert_not_called();commands.assert_not_called();processes.assert_not_called()
+        self.assertEqual(report['status'],'offline_preflight_passed_not_authorized')
+        self.assertEqual(report['total_reservation_usd'],'0.06422')
+        self.assertIsNone(report['selected_allowance_usd'])
+        self.assertEqual(set(report['binary_sha256']),set(BINARIES))
+        self.assertEqual(before,{p.name:p.read_bytes() for p in self.output.iterdir()})
+        self.assertEqual(output.stat().st_mode & 0o777,0o600)
+        with self.assertRaises(FileExistsError):readiness(self.output,self.binaries,output)
+
+    def test_readiness_rejects_claimed_plan_and_output_inside_plan(self):
+        with self.assertRaises(ValueError):readiness(self.output,self.binaries,self.output/'readiness.json')
+        self.assertFalse((self.output/'readiness.json').exists())
+        (self.output/'execution.json').write_bytes(b'claimed')
+        with self.assertRaises(ValueError):readiness(self.output,self.binaries,self.root/'readiness.json')
+        self.assertFalse((self.root/'readiness.json').exists())
 
     def test_child_environment_has_only_its_credential(self):
         with patch.dict(os.environ,self.env,clear=True):
