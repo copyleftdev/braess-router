@@ -10,6 +10,10 @@ Uncertain decisions return a local fallback.
 not a claim of production accuracy or multi-replica coordination.
 [Acceptance requirements](docs/ACCEPTANCE.md) track the remaining release work.
 
+Explore the [interactive landing page](https://copyleftdev.github.io/braess-router/): a monochrome traffic
+visualization using recorded synthetic outcomes, with normal-load, overload and
+recovery views. [Run it locally](site/README.md) without credentials or a build step.
+
 ## Try it
 
 Requires Rust 1.97.1 and Python 3.11+ on Linux.
