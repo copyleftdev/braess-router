@@ -23,9 +23,11 @@ FIELDS = {
     'response_received': {'http_status', 'response_sha256', 'elapsed_ms', 'route',
                           'reason', 'policy_version', 'decision_model', 'handler_index',
                           'decision_input_tokens', 'decision_output_tokens',
-                          'generation_model', 'requested_model', 'generation_provider',
+                          'generation_model', 'requested_model', 'generation_provider', 'generation_id',
                           'generation_input_tokens', 'generation_output_tokens',
                           'generation_cost_usd', 'generation_attempt_id'},
+    'review_validated': {'review_sha256', 'finding_count'},
+    'task_deferred': {'reason'},
     'task_completed': {'outcome'},
     'task_uncertain': {'error'},
 }
@@ -33,10 +35,12 @@ REQUIRED = {
     'task_queued': {'document_id', 'family_id', 'modality'},
     'request_started': {'input_sha256'},
     'response_received': {'http_status', 'response_sha256', 'elapsed_ms'},
+    'review_validated': {'review_sha256', 'finding_count'},
+    'task_deferred': {'reason'},
     'task_completed': {'outcome'},
     'task_uncertain': {'error'},
 }
-INTEGER_FIELDS = {'http_status', 'handler_index', 'decision_input_tokens',
+INTEGER_FIELDS = {'finding_count', 'http_status', 'handler_index', 'decision_input_tokens',
                   'decision_output_tokens', 'generation_input_tokens',
                   'generation_output_tokens', 'generation_attempt_id'}
 
@@ -85,11 +89,12 @@ def validate(event, states):
             raise ValueError('invalid content hash')
     if kind == 'task_queued' and data['modality'] not in ('text', 'image', 'audio', 'video', 'mixed', 'unsupported'):
         raise ValueError('invalid modality')
-    if kind == 'task_completed' and data['outcome'] not in ('handler_completed', 'fallback'):
+    if kind == 'task_completed' and data['outcome'] not in ('handler_completed', 'fallback', 'review_validated'):
         raise ValueError('invalid outcome')
-    allowed = {None: {'task_queued'}, 'task_queued': {'request_started'},
+    allowed = {None: {'task_queued'}, 'task_queued': {'request_started', 'task_deferred'},
                'request_started': {'response_received', 'task_uncertain'},
-               'response_received': {'task_completed', 'task_uncertain'}}
+               'response_received': {'review_validated', 'task_completed', 'task_uncertain'},
+               'review_validated': {'task_completed', 'task_uncertain'}}
     if kind not in allowed.get(states.get(task), set()):
         raise ValueError('invalid task transition')
 
@@ -219,7 +224,8 @@ def summarize(events, states):
     costs = [Decimal(d['generation_cost_usd']) for d in responses if 'generation_cost_usd' in d]
     return {'tasks': len(states), 'completed': sum(v == 'task_completed' for v in states.values()),
             'uncertain': sum(v == 'task_uncertain' for v in states.values()),
-            'incomplete': sum(v not in ('task_completed', 'task_uncertain') for v in states.values()),
+            'deferred': sum(v == 'task_deferred' for v in states.values()),
+            'incomplete': sum(v not in ('task_completed', 'task_uncertain', 'task_deferred') for v in states.values()),
             'reported_generation_cost_usd': str(sum(costs, Decimal(0))),
             'generation_cost_receipts': len(costs),
             'total_cost_usd': None, 'cost_scope': 'partial observations; missing costs are unknown'}

@@ -14,7 +14,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, estimate_usd=None):
+def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, estimate_usd=None, on_result=None):
     url = urllib.parse.urlsplit(gateway_url)
     if (url.scheme != 'http' or not ipaddress.ip_address(url.hostname).is_loopback or
             url.username or url.password or url.query or url.fragment or url.path != '/route'):
@@ -58,7 +58,7 @@ def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, es
                 data['decision_' + key] = body['usage'][key]
         execution = body.get('handler_response', {}).get('execution', {})
         for source, target in [('model', 'generation_model'), ('requested_model', 'requested_model'),
-                               ('provider', 'generation_provider'), ('attempt_id', 'generation_attempt_id')]:
+                               ('provider', 'generation_provider'), ('generation_id', 'generation_id'), ('attempt_id', 'generation_attempt_id')]:
             if execution.get(source) is not None:
                 data[target] = execution[source]
         usage = execution.get('usage', {})
@@ -73,7 +73,14 @@ def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, es
         if status == 200 and body.get('route') == 'fallback':
             recorder.append('task_completed', task_id, outcome='fallback')
         elif status == 200 and isinstance(body.get('handler_response'), dict) and body.get('route'):
-            recorder.append('task_completed', task_id, outcome='handler_completed')
+            if on_result is not None:
+                try:
+                    metadata = on_result(body, raw)
+                except (ValueError, TypeError, KeyError):
+                    recorder.append('task_uncertain', task_id, error='review_validation_failed')
+                    return
+                recorder.append('review_validated', task_id, **metadata)
+            recorder.append('task_completed', task_id, outcome='review_validated' if on_result else 'handler_completed')
         else:
             recorder.append('task_uncertain', task_id, error='gateway_did_not_confirm_completion')
     except (OSError, ValueError, TypeError, AttributeError):

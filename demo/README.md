@@ -1,8 +1,8 @@
 # Discovery fleet demo — in development
 
 This companion will collect real execution evidence for an interactive replay and
-film. The review fleet, native media workers and complete live pricing/reconciliation
-are not implemented yet. A local replay interface now reads the recorded protocol smoke. The design and experiment scope
+film. A bounded text-review runner is implemented; native media workers and complete
+live pricing/reconciliation are not implemented yet. A local replay interface now reads the recorded protocol smoke. The design and experiment scope
 are in [the dogfood plan](../docs/DOGFOOD.md).
 
 The recording component is a durable observer at Braess's HTTP boundary. It
@@ -55,6 +55,13 @@ training-seed IDs, preserving family relationships, source hashes, exact evidenc
 offsets and conflicting judgments. The first local sample contains 40 documents
 across 25 families. [Acquisition, scope and reproduction](CORPUS.md). Real source
 content stays in ignored artifacts; the replay still uses synthetic fixtures.
+
+## Execute validated reviewer tasks
+
+The [bounded fleet runner](FLEET.md) now connects prepared tasks to actual Braess
+and OpenRouter-adapter execution, private response capture, source-span validation
+and replay events. Its offline full-path test distinguishes validated findings,
+fabricated quotes and budget deferrals. Real-corpus paid execution is still pending.
 
 ## Shared spending reservations
 
@@ -110,8 +117,9 @@ costs. A future film export must use the same event-driven renderer as playback.
   reservations and observer dispatch gating are implemented and tested.
 - Native media acquisition and extraction; text-rendering manifests and exact
   source-location validation are implemented for a real TREC development sample.
-- Wire prepared review tasks and validated text findings into reviewer execution;
-  [text findings and draft redaction contracts](REVIEW.md) are implemented.
+- Run the prepared real corpus under a discovery-specific semantic rubric and
+  verified provider pricing; [text findings and draft redaction contracts](REVIEW.md)
+  are now connected to the bounded runner.
   Image/audio coordinates still need separate validation.
 - Public-export validation and film capture. The local synthetic replay and its
   desktop/mobile browser verification are complete for the current smoke slice;
