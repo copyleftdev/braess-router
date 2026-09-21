@@ -53,3 +53,10 @@ jobs:
             artifacts/ci
             artifacts/evidence.json
           retention-days: 14
+          include-hidden-files: true
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: validation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/braess-evidence
+      - name: Verify downloaded evidence
+        run: python3 scripts/verify_evidence.py "$RUNNER_TEMP/braess-evidence/ci" --report "$RUNNER_TEMP/braess-evidence-report.json"

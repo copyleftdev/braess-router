@@ -46,7 +46,10 @@ validity from v1 acceptance; it does not sign provenance, independently rerun th
 commands, certify external CI identity, or establish upstream completion.
 
 Run the real-systemd check separately using the deployment guide. Keep generated
-artifacts outside Git; CI uploads its validation bundle and verification report.
+artifacts outside Git; CI uploads its validation bundle and verification report, including
+the explicitly captured hidden source files. It then downloads that artifact and
+checks the manifest and current sources again. A local pre-upload pass alone does
+not establish that the distributed evidence is complete.
 Do not remove successful checks merely to accommodate a failing candidate.
 
 ## Current disposition
