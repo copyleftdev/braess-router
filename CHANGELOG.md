@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+- Add seven observed provider contract fixtures and offline gateway error-response checks.
+
 ## 0.1.0-alpha.3
 
 - Add offline journal migration for fully completed histories, preserving budget and request IDs.
