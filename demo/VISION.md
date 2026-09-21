@@ -1,7 +1,8 @@
 # Direct image review: measured transport boundary
 
-The current OpenRouter adapter sends text-only messages. Displaying source scans
-and validating OCR coordinates does not establish direct image inference.
+The OpenRouter adapter now supports explicit image-reference routes as well as
+text routes. Displaying scans and validating OCR coordinates alone does not
+establish direct image inference; the transport has separate local fixture tests.
 
 OpenRouter documents multipart chat content with text and `image_url` parts;
 private local images can use base64 data URLs. PNG is supported, but model and
@@ -20,8 +21,8 @@ This verifies inspector asset hashes, prepares a small source-reference envelope
 and a private multipart provider-request specimen, checks base64 round trips, and
 records sizes and hashes. It performs no HTTP request. Fixture model/provider
 labels deliberately make no claim about a real provider's capability or price.
-The reference is a proposed handler contract, not a request the current adapter
-can execute. Output directories are create-only. Input is bounded to eight pages,
+The reference is accepted by a configured `vision_reference` route with the exact
+bundle provisioned in its registry. Output directories are create-only. Input is bounded to eight pages,
 8 MiB of selected PNGs and an 8 KiB prompt. Provider limits may be smaller.
 
 For the actual two-page source fixture, an experiment with a 107-byte prompt
@@ -31,7 +32,7 @@ private experiment files. The provider request exceeds the adapter's current
 65,536-byte maximum inbound limit; the reference fits the pilot's 16,384-byte
 gateway limit. These are transport measurements, not token or cost estimates.
 
-## Intended integration
+## Handler integration
 
 Keep routing text and asset references separate from image payloads. Jev receives
 the bounded task description and available-capability metadata. A selected vision
@@ -40,12 +41,13 @@ pages, and assembles multipart content after routing. Image bytes do not pass
 through the text classifier. Arbitrary prompt text must not become a file path,
 remote URL fetch, model selection or provider-policy override.
 
-The handler needs an explicit reference-input mode, an immutable bounded asset
-registry, image-capable model/provider validation, a separate outbound byte bound,
-and existing durable generation admission/receipt behavior. Current text routes
-must retain their contract. Unknown assets and unsupported capabilities must fail
-before any generation reservation or provider send. Live image pricing and a
-bounded contract probe remain required before dispatch.
+The handler implements an explicit reference-input mode, immutable bounded asset
+registry, separate outbound byte bound and existing durable generation admission
+and receipt behavior. Text routes retain their contract. Unknown assets and
+mismatched references fail before generation reservation or provider send. Live
+image model/provider capability, pricing and a bounded contract probe remain
+required before paid dispatch. Configuration and bounds are documented in
+[the adapter guide](../docs/OPENROUTER.md#provisioned-image-references).
 
 Record source modality separately from reviewer input modality, page hashes and
 selection order, asset resolution and request-assembly timing, request byte count,
@@ -53,6 +55,6 @@ actual generation model/provider, token and cost receipts, and unresolved work.
 Do not map image-only findings to OCR word offsets without supporting evidence;
 page-region observations require a separate validated coordinate contract.
 
-This experiment does not implement that handler, calibrate route quality, approve
+The preparation experiment itself does not dispatch, calibrate route quality, approve
 publication, establish OCR accuracy or perform native redaction. Audio needs a
 real or explicitly labeled supplemental sample and its own capability contract.

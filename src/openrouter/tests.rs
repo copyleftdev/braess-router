@@ -32,12 +32,14 @@ fn config(p: &Temp) -> Config {
         max_response_bytes: 8192,
         admission_limit: 1,
         max_calls: 2,
+        vision_bundles: BTreeMap::new(),
         routes: BTreeMap::from([(
             "coding".into(),
             Route {
                 model: "fixture/code-v1".into(),
                 provider: "fixture".into(),
                 max_tokens: 32,
+                input_mode: InputMode::Text,
             },
         )]),
     }
@@ -203,4 +205,55 @@ fn receipt_must_match_its_reservation() {
     .execution;
     assert!(j.complete(r).is_err());
     assert_eq!(j.status()["pending"], 1);
+}
+
+#[test]
+fn text_config_serialization_preserves_existing_journal_scope() {
+    let temp = Temp::new();
+    let original = config(&temp);
+    let serialized = serde_json::to_value(&original).unwrap();
+    assert!(serialized.get("vision_bundles").is_none());
+    assert!(serialized["routes"]["coding"].get("input_mode").is_none());
+    let roundtrip: Config = serde_json::from_value(serialized).unwrap();
+    assert_eq!(original.scope().unwrap(), roundtrip.scope().unwrap());
+    assert_eq!(roundtrip.routes["coding"].input_mode, InputMode::Text);
+}
+
+#[test]
+fn image_mode_requires_bounded_explicit_registry() {
+    let temp = Temp::new();
+    let mut c = config(&temp);
+    c.routes.get_mut("coding").unwrap().input_mode = InputMode::VisionReference;
+    assert!(c.validate().is_err());
+    c.vision_bundles
+        .insert("a".repeat(64), temp.0.join("source"));
+    c.validate().unwrap();
+    assert!(Adapter::initialize(&c).is_err());
+    assert!(!c.journal_path.exists());
+    c.admission_limit = 5;
+    assert!(c.validate().is_err());
+    c.admission_limit = 1;
+    c.vision_bundles.insert("bad".into(), temp.0.join("source"));
+    assert!(c.validate().is_err());
+}
+
+#[test]
+fn image_receipt_rejects_unbounded_or_invalid_hash_evidence() {
+    let mut r = decode(
+        &serde_json::to_vec(&response()).unwrap(),
+        1,
+        "coding",
+        "fixture/code-v1",
+    )
+    .unwrap()
+    .execution;
+    r.input_evidence = Some(InputEvidence {
+        reference_sha256: "a".repeat(64),
+        image_sha256: vec!["b".repeat(64)],
+    });
+    assert!(r.valid());
+    r.input_evidence.as_mut().unwrap().image_sha256 = vec!["b".repeat(64); 9];
+    assert!(!r.valid());
+    r.input_evidence.as_mut().unwrap().image_sha256 = vec!["bad".into()];
+    assert!(!r.valid());
 }

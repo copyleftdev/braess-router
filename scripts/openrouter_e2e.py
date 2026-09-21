@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic adapter and gateway integration; no external requests or API keys."""
 import argparse
+import base64
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -103,12 +104,15 @@ def run(output, binary):
     def stop(p, force=False):
         (p.kill if force else p.terminate)()
         p.wait(timeout=5)
-    def fresh(name, cap=8):
+    def fresh(name, cap=8, vision=None):
         config = {'bind': f'127.0.0.1:{port()}', 'mode': 'mock', 'url': f'http://127.0.0.1:{fixture.server_port}/chat/completions',
                   'journal_path': str(output / (name + '.jsonl')), 'deadline_ms': 400, 'max_request_bytes': 4096,
                   'max_response_bytes': 8192, 'admission_limit': 1, 'max_calls': cap,
                   'routes': {r: {'model': 'fixture/' + r, 'provider': 'fixture', 'max_tokens': 16} for r in ('general', 'coding', 'reasoning')}}
         path = output / (name + '.json')
+        if vision:
+            config['vision_bundles'] = vision
+            for route in config['routes'].values(): route['input_mode'] = 'vision_reference'
         path.write_text(json.dumps(config, indent=2))
         assert command([str(binary), '--config', str(path), '--init']).returncode == 0
         return config, path
@@ -185,6 +189,56 @@ def run(output, binary):
             fallback = request(gateway_url + '/route', {'request': 'uncertain'})
             assert fallback['body']['route'] == 'fallback' and len(events) == before
             stop(gateway_process)
+            # A provisioned PNG is resolved only after the selected vision route.
+            image = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ1kAAAAASUVORK5CYII=')
+            image_hash = hashlib.sha256(image).hexdigest()
+            bundle = output/'vision-bundle'; bundle.mkdir()
+            (bundle/'page-1.png').write_bytes(image)
+            page = {'page':1,'sha256':image_hash,'bytes':len(image),'width':1,'height':1}
+            manifest = {'schema_version':1,'complete':True,'publication_approved':False,
+                        'document_id':'fixture-image','native_source_sha256':image_hash,
+                        'coordinate_unit':'source_page_pixels','pages':[{**page,'file':'page-1.png'}]}
+            raw = json.dumps(manifest).encode(); (bundle/'manifest.json').write_bytes(raw)
+            manifest_hash = hashlib.sha256(raw).hexdigest()
+            vc,vp = fresh('vision',vision={manifest_hash:str(bundle)})
+            vision_process, vision_url = start(vp)
+            reference = {'schema_version':1,'kind':'vision_reference_v1','document_id':'fixture-image',
+                         'native_source_sha256':image_hash,'inspector_manifest_sha256':manifest_hash,
+                         'prompt':'Describe the fixture pixel.','pages':[page]}
+            before = len(events)
+            for changed in [{**reference,'document_id':'other'}, {**reference,'pages':[page,page]},
+                            {**reference,'inspector_manifest_sha256':'0'*64},
+                            {**reference,'pages':[{**page,'sha256':'0'*64}]},
+                            {**reference,'url':'https://untrusted.invalid/image.png'}]:
+                assert request(vision_url+'/generate/general',{'route':'general','request':json.dumps(changed)})['status']==400
+            assert request(vision_url+'/status')['body']['calls_reserved']==0 and len(events)==before
+            # The running process must keep the approved startup bytes immutable.
+            (bundle/'page-1.png').write_bytes(b'changed after startup')
+            gconfig['handlers']={r:[vision_url+'/generate/'+r] for r in vc['routes']}
+            gconfig['bind']=f'127.0.0.1:{port()}'
+            vgp=output/'vision-gateway.json'; vgp.write_text(json.dumps(gconfig))
+            vg,vgurl=start(vgp,binary.with_name('braess-router'))
+            reference_wire=json.dumps(reference)
+            vision_response=request(vgurl+'/route',{'request':reference_wire})
+            assert vision_response['status']==200 and vision_response['body']['route']=='general'
+            evidence=vision_response['body']['handler_response']['execution']['input_evidence']
+            assert evidence=={'reference_sha256':hashlib.sha256(reference_wire.encode()).hexdigest(),'image_sha256':[image_hash]}
+            parts=events[-1]['body']['messages'][0]['content']
+            assert parts[0]=={'type':'text','text':reference['prompt']}
+            assert parts[1]['type']=='image_url'
+            assert base64.b64decode(parts[1]['image_url']['url'].split(',',1)[1],validate=True)==image
+            stop(vg); stop(vision_process)
+            assert command([str(binary),'--config',str(vp)]).returncode!=0
+            (bundle/'page-1.png').write_bytes(image)
+            restored,restored_url=start(vp)
+            assert request(restored_url+'/status')['body']['completed']==1
+            stop(restored)
+            journal_text=Path(vc['journal_path']).read_text()
+            assert image_hash in journal_text and reference['prompt'] not in journal_text and 'base64' not in journal_text
+            result['vision_response']=vision_response
+            result['vision_checks']=['invalid references refused before reservation','immutable source bytes',
+                                     'gateway to multipart handler','exact PNG round trip','source hashes in durable receipt',
+                                     'changed source refuses restart']
         finally:
             jev.close()
         stop(p)

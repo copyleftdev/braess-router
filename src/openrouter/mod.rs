@@ -1,6 +1,8 @@
-//! Text-only, non-streaming OpenRouter execution. Provider policy is explicit;
+//! Bounded, non-streaming OpenRouter execution. Provider policy is explicit;
 //! generation reservations and receipts are separate from Jev accounting.
 mod journal;
+mod vision;
+pub use vision::InputEvidence;
 pub mod server;
 use crate::valid_route_label;
 use journal::Journal;
@@ -27,6 +29,20 @@ pub struct Route {
     pub model: String,
     pub provider: String,
     pub max_tokens: u32,
+    #[serde(default, skip_serializing_if = "InputMode::is_text")]
+    pub input_mode: InputMode,
+}
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InputMode {
+    #[default]
+    Text,
+    VisionReference,
+}
+impl InputMode {
+    fn is_text(&self) -> bool {
+        *self == Self::Text
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -41,6 +57,8 @@ pub struct Config {
     pub admission_limit: usize,
     pub max_calls: u64,
     pub routes: BTreeMap<String, Route>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub vision_bundles: BTreeMap<String, PathBuf>,
 }
 fn label(s: &str, max: usize) -> bool {
     !s.is_empty() && s.len() <= max && !s.chars().any(char::is_control)
@@ -90,6 +108,19 @@ impl Config {
                 return Err("invalid_openrouter_route");
             }
         }
+        if self.vision_bundles.len() > 8
+            || self.vision_bundles.iter().any(|(hash, path)| {
+                !vision::is_hash(hash) || !path.is_absolute() || path.as_os_str().len() > 4096
+            })
+            || (!self.vision_bundles.is_empty() && self.admission_limit > 4)
+            || (self
+                .routes
+                .values()
+                .any(|r| r.input_mode == InputMode::VisionReference)
+                && self.vision_bundles.is_empty())
+        {
+            return Err("invalid_vision_config");
+        }
         Ok(())
     }
     fn scope(&self) -> Result<String, &'static str> {
@@ -122,10 +153,16 @@ pub struct Receipt {
     pub generation_id: String,
     pub finish_reason: String,
     pub usage: Usage,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_evidence: Option<InputEvidence>,
 }
 impl Receipt {
     fn valid(&self) -> bool {
         label(&self.model, 256)
+            && self
+                .input_evidence
+                .as_ref()
+                .is_none_or(InputEvidence::valid)
             && label(&self.generation_id, 256)
             && self.provider.as_ref().is_none_or(|p| label(p, 128))
             && ["stop", "length", "content_filter"].contains(&self.finish_reason.as_str())
@@ -204,6 +241,7 @@ fn decode(bytes: &[u8], id: u64, route: &str, requested: &str) -> Result<Generat
         provider: wire.provider,
         generation_id: wire.id,
         finish_reason: choice.finish_reason,
+        input_evidence: None,
         usage: Usage {
             prompt_tokens: wire.usage.prompt_tokens,
             completion_tokens: wire.usage.completion_tokens,
@@ -225,14 +263,18 @@ pub struct Adapter {
     client: reqwest::Client,
     key: Option<reqwest::header::HeaderValue>,
     journal: Arc<Mutex<Journal>>,
+    vision: vision::Registry,
 }
 impl Adapter {
     /// Explicit creation only; startup never replaces missing or damaged state.
     pub fn initialize(config: &Config) -> Result<(), &'static str> {
+        config.validate()?;
+        vision::Registry::load(config)?;
         Journal::initialize(config).map_err(|_| "journal_initialize_failed")
     }
     pub fn new(config: Config, key: Option<String>) -> Result<Arc<Self>, &'static str> {
         config.validate()?;
+        let vision = vision::Registry::load(&config)?;
         let key = match (&config.mode, key) {
             (Mode::Live, Some(k)) if !k.trim().is_empty() => {
                 let mut value = reqwest::header::HeaderValue::from_str(&format!("Bearer {k}"))
@@ -256,6 +298,7 @@ impl Adapter {
             client,
             key,
             journal: Arc::new(Mutex::new(journal)),
+            vision,
         }))
     }
     pub fn inspect(config: &Config) -> Result<Value, &'static str> {
@@ -284,8 +327,22 @@ impl Adapter {
             .get(&input.route)
             .ok_or_else(|| fail(400, "unknown_route"))?
             .clone();
-        let body = json!({"model":route.model,"messages":[{"role":"user","content":input.request}],"stream":false,"max_tokens":route.max_tokens,
+        let (content, input_evidence) = match route.input_mode {
+            InputMode::Text => (Value::String(input.request.clone()), None),
+            InputMode::VisionReference => {
+                let (content, evidence) = self
+                    .vision
+                    .content(&input.request)
+                    .map_err(|code| fail(400, code))?;
+                (content, Some(evidence))
+            }
+        };
+        let body = json!({"model":route.model,"messages":[{"role":"user","content":content}],"stream":false,"max_tokens":route.max_tokens,
             "provider":{"only":[route.provider],"order":[route.provider],"allow_fallbacks":false,"require_parameters":true}});
+        let body = serde_json::to_vec(&body).map_err(|_| fail(400, "invalid_request"))?;
+        if body.len() > vision::MAX_OUTBOUND {
+            return Err(fail(400, "openrouter_request_too_large"));
+        }
         let journal = self.journal.clone();
         let route_name = input.route.clone();
         let requested = route.model.clone();
@@ -297,39 +354,45 @@ impl Adapter {
         })
         .await
         .map_err(|_| fail(503, "journal_unavailable"))??;
-        let mut request = self.client.post(&self.config.url).json(&body);
+        let mut request = self
+            .client
+            .post(&self.config.url)
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(body);
         if let Some(key) = &self.key {
             request = request.header(reqwest::header::AUTHORIZATION, key.clone());
         }
-        let result = tokio::time::timeout(Duration::from_millis(self.config.deadline_ms), async {
-            let mut response = request
-                .send()
-                .await
-                .map_err(|_| fail(502, "openrouter_transport_error"))?;
-            if !response.status().is_success() {
-                return Err(fail(502, "openrouter_http_error"));
-            }
-            if response
-                .content_length()
-                .is_some_and(|n| n > self.config.max_response_bytes as u64)
-            {
-                return Err(fail(502, "openrouter_response_too_large"));
-            }
-            let mut bytes = Vec::new();
-            while let Some(chunk) = response
-                .chunk()
-                .await
-                .map_err(|_| fail(502, "openrouter_transport_error"))?
-            {
-                if chunk.len() > self.config.max_response_bytes.saturating_sub(bytes.len()) {
+        let mut result =
+            tokio::time::timeout(Duration::from_millis(self.config.deadline_ms), async {
+                let mut response = request
+                    .send()
+                    .await
+                    .map_err(|_| fail(502, "openrouter_transport_error"))?;
+                if !response.status().is_success() {
+                    return Err(fail(502, "openrouter_http_error"));
+                }
+                if response
+                    .content_length()
+                    .is_some_and(|n| n > self.config.max_response_bytes as u64)
+                {
                     return Err(fail(502, "openrouter_response_too_large"));
                 }
-                bytes.extend_from_slice(&chunk);
-            }
-            decode(&bytes, id, &input.route, &route.model)
-        })
-        .await
-        .map_err(|_| fail(504, "openrouter_deadline_exceeded"))??;
+                let mut bytes = Vec::new();
+                while let Some(chunk) = response
+                    .chunk()
+                    .await
+                    .map_err(|_| fail(502, "openrouter_transport_error"))?
+                {
+                    if chunk.len() > self.config.max_response_bytes.saturating_sub(bytes.len()) {
+                        return Err(fail(502, "openrouter_response_too_large"));
+                    }
+                    bytes.extend_from_slice(&chunk);
+                }
+                decode(&bytes, id, &input.route, &route.model)
+            })
+            .await
+            .map_err(|_| fail(504, "openrouter_deadline_exceeded"))??;
+        result.execution.input_evidence = input_evidence;
         let receipt = result.execution.clone();
         let journal = self.journal.clone();
         tokio::task::spawn_blocking(move || {

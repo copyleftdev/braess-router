@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.7
+
+- Add explicit image-reference OpenRouter routes backed by bounded, hash-verified local PNG bundles.
+- Keep routing inputs small while assembling multipart image requests after route selection.
+- Retain source-reference and image hashes in generation receipts; preserve text route and journal serialization defaults.
+- Direct image transport validation uses local fixtures; live model capability, pricing and semantic quality remain separate checks.
+
 ## 0.1.0-alpha.6
 
 - Return validated routing scores, policy thresholds and partial timing traces on gateway execution responses.
