@@ -37,6 +37,12 @@ Configure the endpoints first. For live Jev, use
 [the live example](config/gateway.live.example.json) and provide
 `TYPESAFE_API_KEY` in the process environment. Handler services remain loopback.
 
+## Execute through OpenRouter
+
+The optional `braess-openrouter` companion maps selected routes to explicit models
+and providers, with durable call reservations and generation receipts.
+[Setup and limits](docs/OPENROUTER.md). Text-only, non-streaming, no automatic retries.
+
 ## Guarantees and limits
 
 - Bounded ingress, body sizes, deadlines, endpoint admission and uncertainty records.

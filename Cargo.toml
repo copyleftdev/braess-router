@@ -1,6 +1,6 @@
 [package]
 name = "braess-router"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2024"
 rust-version = "1.97.1"
 publish = ["crates-io"]
@@ -44,3 +44,7 @@ path = "src/bin/braess-journal-init.rs"
 [[bin]]
 name = "braess-journal-compact"
 path = "src/bin/braess-journal-compact.rs"
+
+[[bin]]
+name = "braess-openrouter"
+path = "src/bin/braess-openrouter.rs"
