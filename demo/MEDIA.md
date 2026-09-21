@@ -100,3 +100,33 @@ provider handler, source-linked evidence inspection and approved public excerpts
 The current web replay contains no native images or real Enron text. Audio and
 video workers remain planned, contingent on actual corpus media or a separately
 identified supplemental dataset.
+
+## Private inspector bundle
+
+`evidence_bundle.py` prepares browser-readable page PNGs, OCR text and word boxes
+from an imported OCR corpus. It does not serve those files or add them to the
+public replay. Run it into a new private directory:
+
+```sh
+python3 demo/evidence_bundle.py CORPUS/manifest.json DOCUMENT_ID NEW_DIRECTORY
+```
+
+The exporter rechecks native/text/mapping hashes, then decodes the image in a
+bounded child process (768 MiB address space, 20 CPU seconds, 30-second wall
+limit). Decoded frame count and every page's dimensions must exactly match the
+OCR mapping. Pages retain source pixel coordinates: no crop, resize or orientation
+transform. PNGs use RGBA pixels without inherited image metadata; visible source
+content remains present. Output is limited to 64 MiB per PNG and 128 MiB total.
+These resource limits are not a complete hostile-file sandbox.
+
+A final manifest binds page hashes, text, word boxes, source hashes, decoder
+version and exporter source hash. A failed export can leave partial files, but
+no completed manifest. Existing output directories are refused. The bundle is
+private source material, not a reviewed publication or native redaction.
+`review_performed` and `publication_approved` remain false. OCR confidence remains
+an extraction signal, not evidence of transcription or legal accuracy.
+
+The actual two-page TIFF exported with all 581 OCR word locations. Tests compare
+synthetic multipage source pixels against exported PNG pixels and reject mapping
+page-count/dimension mismatches. The next UI integration can load these explicit
+assets and use the same source-page pixel coordinate system for highlights.
