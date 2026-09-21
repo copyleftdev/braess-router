@@ -1,7 +1,7 @@
 # Discovery fleet demo — in development
 
 This companion will collect real execution evidence for an interactive replay and
-film. The review fleet, legal corpus, media workers and complete live pricing/reconciliation
+film. The review fleet, native media workers and complete live pricing/reconciliation
 are not implemented yet. A local replay interface now reads the recorded protocol smoke. The design and experiment scope
 are in [the dogfood plan](../docs/DOGFOOD.md).
 
@@ -47,6 +47,14 @@ Recording directories are created privately, but generic identifier fields can
 still contain private information if callers misuse them. Supply opaque IDs.
 Treat run bundles as private until an explicit public-export validator and source
 content approval exist. No automatic public export or Pages deployment is enabled.
+
+## Real corpus development sample
+
+A bounded importer now matches the official TREC Enron text renderings to their
+training-seed IDs, preserving family relationships, source hashes, exact evidence
+offsets and conflicting judgments. The first local sample contains 40 documents
+across 25 families. [Acquisition, scope and reproduction](CORPUS.md). Real source
+content stays in ignored artifacts; the replay still uses synthetic fixtures.
 
 ## Shared spending reservations
 
@@ -100,7 +108,8 @@ costs. A future film export must use the same event-driven renderer as playback.
 - Internal decision/dispatch/completion events with task correlation.
 - Conservative pricing estimates and full receipt reconciliation; shared durable
   reservations and observer dispatch gating are implemented and tested.
-- Corpus manifest and source-location-preserving extraction.
+- Native media acquisition and extraction; text-rendering manifests and exact
+  source-location validation are implemented for a real TREC development sample.
 - Reviewer output schema and validated text/image/audio evidence locators.
 - Public-export validation and film capture. The local synthetic replay and its
   desktop/mobile browser verification are complete for the current smoke slice;
