@@ -33,8 +33,13 @@ jobs:
           fi
       - run: python3 scripts/test_version.py
       - run: python3 scripts/test_evidence.py
-      - name: Discovery recording tests
-        run: python3 -m unittest discover -s demo -p 'test_*.py'
+      - name: Install bounded image-test dependency
+        run: |
+          python3 -m venv "$RUNNER_TEMP/discovery-test-venv"
+          "$RUNNER_TEMP/discovery-test-venv/bin/python" -m pip install -r demo/requirements-media.txt
+      - name: Discovery recording and media tests
+        run: |
+          "$RUNNER_TEMP/discovery-test-venv/bin/python" -m unittest discover -s demo -p 'test_*.py'
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -56,6 +61,10 @@ jobs:
         run: python3 demo/fleet_smoke.py artifacts/discovery-policy --binary target/release/braess-router --discovery
       - name: Verify discovery policy export
         run: python3 demo/export_replay.py artifacts/discovery-policy/run/recording artifacts/discovery-policy/replay.json --profile discovery
+      - name: Freeze and verify synthetic discovery package
+        run: |
+          python3 demo/package_replay.py build artifacts/discovery-policy/corpus artifacts/discovery-policy/prepared/tasks.json artifacts/discovery-policy/run artifacts/discovery-policy/package
+          python3 demo/package_replay.py verify artifacts/discovery-policy/package
       - run: cargo package --locked
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -75,3 +84,5 @@ jobs:
           path: ${{ runner.temp }}/braess-evidence
       - name: Verify downloaded evidence
         run: python3 scripts/verify_evidence.py "$RUNNER_TEMP/braess-evidence/ci" --report "$RUNNER_TEMP/braess-evidence-report.json"
+      - name: Verify downloaded replay package
+        run: python3 demo/package_replay.py verify "$RUNNER_TEMP/braess-evidence/discovery-policy/package"

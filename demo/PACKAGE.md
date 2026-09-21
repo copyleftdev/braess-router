@@ -45,3 +45,9 @@ BRAESS_REPLAY_URL=http://127.0.0.1:4181 node demo/test_source_navigation.cjs
 Set `PLAYWRIGHT_MODULE` if needed. This fixture-specific test verifies exact
 source boxes, quote text, tampered association rejection, rewind/page-change
 clearing and overflow. It does not evaluate live review quality.
+
+CI builds a separate package from its four-task synthetic discovery-policy run,
+verifies it before upload, and verifies it again after downloading the validation
+artifact. No real corpus is involved in that workflow. CI also installs the
+pinned Pillow dependency in a temporary virtual environment before running the
+Python suite so optional image tests execute there.
