@@ -1,7 +1,8 @@
 # Discovery review fleet: dogfood experiment plan
 
-Status: proposed, 2026-09-21. This document plans a real, paid workload against
-Braess Router; it does not claim that the review application exists yet.
+Status: experiment plan, 2026-09-21. A bounded local fleet, OCR evidence linkage,
+metadata replay and synthetic film draft now exist under `demo/`; this document
+retains the broader real, paid experiment requirements, which remain incomplete.
 Working interpretation: litigation-defense discovery. Pilot dollar cap awaits
 user selection. Planning and offline development can proceed without paid calls.
 
