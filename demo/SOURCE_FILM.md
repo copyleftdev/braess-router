@@ -35,3 +35,6 @@ the source-navigation frame was visually inspected. The manifest records zero
 external provider calls, synthetic provider responses, unevaluated semantic
 accuracy, and no publication approval. This is footage of verified source
 navigation; direct vision inference and audio review remain separate work.
+That draft predates the **Across the routes** section. Its recorded renderer
+hashes identify the earlier UI; capturing the current page requires a fresh
+output directory and produces a separate manifest.

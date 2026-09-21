@@ -85,4 +85,15 @@ their cost receipts are fixture values, not actual provider charges.
 Route cohorts are descriptive observations, not randomized comparisons. A tiny
 sample's p95 is not a production latency estimate. Finding-span validation is
 not a measure of legal accuracy. These artifacts support later visualization;
-they are not yet loaded by the browser replay.
+the browser derives the timing subset directly from visible replay events.
+
+The **Across the routes** section groups returned routes, preserving uncertain
+tasks in their observed route cohort. It shows completed/uncertain/pending
+counts and nearest-rank client, Jev and handler medians with sample coverage.
+Tasks without a returned route are counted separately. Rewinding removes future
+responses and outcomes. This view does not load the final analysis artifact,
+which would expose results ahead of the clock. Its final values are checked
+against `run_metrics.py` output by `test_route_comparison.cjs`, using the saved
+four-task discovery fixture. The browser test requires that fixture and its
+`route-metrics-v2.json` artifact; it intercepts replay data on the local preview
+at port 4180 and never invokes a provider.

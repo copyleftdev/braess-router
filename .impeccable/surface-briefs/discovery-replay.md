@@ -288,3 +288,64 @@ and recorded results without an independent browser run. This update completes
 the bounded navigation documentation. It records no paid live review,
 publication or completion of the broader dogfood goal; live corpus review and
 semantic-quality evaluation remain pending.
+
+## Route comparison extension — 2026-09-21
+
+“Across the routes” adds a ruled comparison section between replay transport
+and task inspection. It groups tasks by their returned route visible at the
+current observer clock, retains uncertain tasks in their returned-route group,
+and shows completed, uncertain and pending counts. Visible tasks without a
+reported route are counted separately, including deferred and unanswered work.
+Rewinding removes future responses and outcomes. The browser derives these
+groups from visible replay events rather than loading the final analysis file.
+
+Each group shows nearest-rank client, Jev and handler medians with explicit
+observed/total denominators. Client duration comes from the response's recorded
+elapsed milliseconds; Jev and handler intervals come from their gateway-local
+send/validation boundaries and include transport and validation overhead.
+Missing boundaries display “Unknown” with zero observations, never a zero
+duration. The observer and gateway clocks remain separate. These descriptive
+cohorts do not establish speedup, total cost, savings or review accuracy; cost
+receipts remain available in individual task inspection with their existing
+scope. `demo/TELEMETRY.md` describes the metadata and analysis conventions.
+
+The section preserves Archivo, monochrome text, flat graphite rules, tabular
+figures and the incumbent identity. Desktop rows pair a route name with four
+metric columns. Below 850px the route name moves above those metrics; below
+600px the metrics form two columns. Route headings use regular 18px type,
+metric labels and observation notes use 12px, and values use 21px desktop/20px
+mobile. These are local surface observations, not new system tokens. No raster
+asset ships. `DESIGN.md` and `.impeccable/design.json` remain unchanged.
+
+Evidence checked for this bounded documentation pass:
+
+- Source: `demo/web/index.html`, `app.js`, `style.css`,
+  `demo/test_route_comparison.cjs` and `demo/TELEMETRY.md`, alongside product,
+  design and existing surface authority. The nearest-rank expression was
+  inspected in source.
+- Full-page [desktop, 1440px](../review/route-comparison-desktop.png) and
+  [mobile, 390px](../review/route-comparison-mobile.png), plus intentional
+  viewport [desktop detail](../review/route-comparison-detail-desktop.png) and
+  [mobile detail](../review/route-comparison-detail-mobile.png), were visually
+  inspected. The mobile detail shows only part of the section; the full-page
+  capture establishes the remaining content. They show the four-task synthetic
+  discovery fixture at 15 visible events: two completed, one uncertain and one
+  deferred task. The fallback handler interval is unknown with 0/1 observed.
+- [Recorded browser results](../review/route-comparison-browser.json) pass
+  saved Python metrics parity, rewind clearing and partial-clock route grouping
+  at both widths, with no horizontal overflow or page errors. The test compares
+  against the saved `artifacts/discovery-policy-v2/route-metrics-v2.json` artifact.
+  Each fixture route cohort contains only one task, so parity does not
+  independently exercise medians over multiple observations. This documenter
+  read the results and source without rerunning the browser or backend.
+- The implementation owner reports passing `demo/test_source_navigation.cjs`
+  regression coverage. The supplied reviewer independently inspected source and
+  all four captures without a browser rerun and found no material defects or
+  need for recapture. Detector findings are advisory: inherited neutrals, font
+  ramp and placeholders, plus the incumbent 18px heading treatment. No detector
+  suppression or new identity was introduced.
+
+Reviewer disposition: **SHIP this UI slice after documentation; no material
+fixes required**. This update completes the bounded route-comparison
+documentation. Paid live review, media review and the broader dogfood goal
+remain unfinished; this slice supplies no evidence that those goals are complete.

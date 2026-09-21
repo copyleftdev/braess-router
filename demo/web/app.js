@@ -54,6 +54,41 @@
     ctx.strokeStyle='#272727';ctx.beginPath();ctx.arc(cx,cy,r+6,0,Math.PI*2);ctx.stroke();
     for(let i=0;i<36;i++){const a=i*Math.PI/18;ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*(r+12),cy+Math.sin(a)*(r+12));ctx.lineTo(cx+Math.cos(a)*(r+15),cy+Math.sin(a)*(r+15));ctx.stroke();}
   }
+  let comparisonKey=-1;
+  function compareRoutes(){
+    const count=bundle.events.filter(e=>e.elapsed_ns<=clock).length;
+    if(count===comparisonKey)return;
+    comparisonKey=count;
+    const cohorts=new Map();let unrouted=0;
+    for(const task of tasks){
+      const events=visible(task);if(!events.length)continue;
+      const r=response(task);
+      if(!r?.route){unrouted++;continue;}
+      if(!cohorts.has(r.route))cohorts.set(r.route,[]);
+      cohorts.get(r.route).push({r,state:state(task)});
+    }
+    const median=values=>{values.sort((a,b)=>a-b);return values.length?values[Math.ceil(values.length*.5)-1]:null;};
+    const container=$('route-comparison');container.replaceChildren();
+    for(const [route,rows] of [...cohorts].sort(([a],[b])=>a.localeCompare(b))){
+      const row=element('section',undefined,'comparison-row');row.dataset.route=route;
+      row.append(element('h3',route.replaceAll('_',' ')));
+      const facts=element('dl');
+      const add=(label,value,note)=>{const cell=element('div');cell.append(element('dt',label));const dd=element('dd',value);if(note)dd.append(element('small',note));cell.append(dd);facts.append(cell);};
+      const completed=rows.filter(x=>x.state==='task_completed').length,uncertain=rows.filter(x=>x.state==='task_uncertain').length;
+      add('Observed results',String(rows.length),`${completed} completed · ${uncertain} uncertain · ${rows.length-completed-uncertain} pending`);
+      const durations=rows.map(x=>x.r.elapsed_ms).filter(Number.isFinite);
+      const value=median(durations);
+      add('Client median',value===null?'Unknown':value.toFixed(2)+' ms',`${durations.length} / ${rows.length} observed`);
+      for(const [label,start,end] of [['Jev median','decision_send_started_ns','decision_validated_ns'],['Handler median','handler_send_started_ns','handler_validated_ns']]){
+        const values=rows.flatMap(({r})=>{const t=r.routing_trace;return t&&Number.isFinite(t[start])&&Number.isFinite(t[end])?[t[end]-t[start]]:[];});
+        const result=median(values);add(label,result===null?'Unknown':ms(result),`${values.length} / ${rows.length} observed`);
+      }
+      row.append(facts);container.append(row);
+    }
+    if(!cohorts.size)container.append(element('p','No returned routes are visible yet.','comparison-empty'));
+    $('comparison-clock').textContent=`${count} visible events`;
+    $('comparison-unrouted').textContent=`${unrouted} visible ${unrouted===1?'task has':'tasks have'} no reported route. Deferred and unanswered requests stay outside these route groups.`;
+  }
   function render(){
     if(!bundle)return;
     $('seek').value=String(Math.round(clock/duration*1000));$('time').textContent=ms(clock)+' / '+ms(duration);
@@ -67,7 +102,7 @@
     }
     $('completed').textContent=completed;$('uncertain').textContent=uncertain;$('pending').textContent=pending;$('deferred').textContent=deferred;
     $('event-count').textContent=bundle.events.filter(e=>e.elapsed_ns<=clock).length+' / '+bundle.events.length+' events';
-    inspect();draw();
+    compareRoutes();inspect();draw();
   }
   function inspect(){
     const task=tasks.find(t=>t.id===selected);if(!task)return;
