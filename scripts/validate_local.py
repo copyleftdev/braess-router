@@ -31,7 +31,7 @@ def source_paths():
     for directory, pattern in [('src', '*.rs'), ('scripts', '*.py'), ('scripts', '*.c'), ('config', '*.json'),
                                ('eval', '*.json'), ('docs', '*.md'), ('.github', '*.yml')]:
         paths.extend((ROOT / directory).rglob(pattern))
-    for pattern in ('*.py', '*.html', '*.css', '*.js', '*.cjs', '*.json', '*.md'):
+    for pattern in ('*.py', '*.html', '*.css', '*.js', '*.cjs', '*.json', '*.md', '*.txt'):
         paths.extend((ROOT / 'demo').rglob(pattern))
     paths.extend(ROOT / 'eval' / n for n in ('rubric.json', 'rubric.customer-service.json', 'cases.jsonl'))
     return sorted(set(paths))

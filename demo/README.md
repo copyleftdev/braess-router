@@ -56,6 +56,13 @@ offsets and conflicting judgments. The first local sample contains 40 documents
 across 25 families. [Acquisition, scope and reproduction](CORPUS.md). Real source
 content stays in ignored artifacts; the replay still uses synthetic fixtures.
 
+## Native media and OCR
+
+A bounded prefix of the official native archive now has a signature inventory.
+Thirteen image candidates decoded, including three multipage TIFFs; one two-page
+TIFF has local OCR with source-linked word coordinates. [Measured coverage,
+reproduction and limits](MEDIA.md). This is local extraction, not semantic review.
+
 ## Execute validated reviewer tasks
 
 The [bounded fleet runner](FLEET.md) now connects prepared tasks to actual Braess
@@ -115,8 +122,8 @@ costs. A future film export must use the same event-driven renderer as playback.
 - Internal decision/dispatch/completion events with task correlation.
 - Conservative pricing estimates and full receipt reconciliation; shared durable
   reservations and observer dispatch gating are implemented and tested.
-- Native media acquisition and extraction; text-rendering manifests and exact
-  source-location validation are implemented for a real TREC development sample.
+- Join sampled native media to text IDs and connect OCR/vision findings to image
+  coordinates. A bounded native inventory and local OCR sample are implemented.
 - Run the prepared real corpus under a discovery-specific semantic rubric and
   verified provider pricing; [text findings and draft redaction contracts](REVIEW.md)
   are now connected to the bounded runner.

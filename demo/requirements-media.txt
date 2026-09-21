@@ -1,0 +1,2 @@
+# Optional local image decoder, matching the verified development environment.
+Pillow==12.1.1
