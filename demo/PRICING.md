@@ -59,8 +59,9 @@ been reconciled against these candidates.
 select a pilot allowance or permit dispatch. It assumes the existing direct
 TypeSafe gateway; OpenRouter's separate Decisions transport is not implemented.
 A [two-task plan](PILOT.md) now binds this catalog to explicit configurations.
-Execution-time enforcement, complete billing reconciliation and a selected
-allowance remain before the paid fleet pilot.
+The coordinator enforces that binding immediately before dispatch. A selected
+allowance remains pending; the pilot must capture provider-contract evidence and
+retain reservations until complete billing reconciliation.
 
 Tests cover exact decimal arithmetic, separate reasoning allowance, refusal of
 base provider slugs, unavailable endpoints, unknown charges, unsupported token

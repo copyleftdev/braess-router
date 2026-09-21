@@ -41,10 +41,10 @@ separate states. Synthetic smoke estimates are test amounts, not incurred cost.
 
 The pilot cap remains unselected. No new paid requests were made to test this
 ledger. A [dated text-pilot pricing snapshot and capacity-based quote](PRICING.md)
-now exist, with [a bounded configuration plan](PILOT.md). Execution-time
-enforcement of that binding, modality-specific estimation,
-provider contract capture and complete receipt reconciliation remain before
-using this as a paid fleet controller. A pricing hash binds state to the caller's
+now exist, with [a bounded configuration plan and execution coordinator](PILOT.md).
+The coordinator enforces the binding before dispatch. The first text/OCR pilot
+still awaits an allowance; provider contract capture and complete receipt
+reconciliation remain validation work. Native-media pricing is not covered. A pricing hash binds state to the caller's
 selected catalog; the ledger does not establish that the catalog is accurate.
 It trusts the caller's estimate and charge evidence.
 

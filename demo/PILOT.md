@@ -56,8 +56,8 @@ response contracts.
 Select the pilot's spending allowance; refresh expired price evidence; reverify
 this plan immediately before startup; initialize fresh durable call limits and a
 shared monetary ledger bound to `pricing.json`; and run the two tasks once with
-private captures. The execution coordinator still needs to enforce this preflight
-and record binary/config hashes for the live run. Do not invoke the raw fleet
+private captures. The execution coordinator described below enforces this preflight and records
+binary/config hashes for the run. Do not invoke the raw fleet
 command with an arbitrary estimate and call it a bound pilot.
 
 Keep both API keys only in the child processes that need them. Preserve returned
@@ -70,3 +70,42 @@ vision/audio review and a reviewed public film remain separate deliverables.
 Tests cover the fixed route/call bounds, changed source bytes, changed provider
 bindings even after manifest rehashing, stale evidence, and rejection of a batch
 that is not exactly two fully prepared tasks.
+
+
+## Execute once after allowance selection
+
+```sh
+# Supply TYPESAFE_API_KEY and OPENROUTER_API_KEY through the environment.
+python3 demo/pilot_run.py PLAN_DIRECTORY BUILT_BINARY_DIRECTORY \
+  --allowance-usd SELECTED_ALLOWANCE
+```
+
+The coordinator refuses stale or changed plans, insufficient allowance, missing
+credentials, occupied loopback endpoints and any previously attempted or
+initialized plan. A create-only, fsynced `execution.json` claims the attempt before
+initialization. It binds the plan/configuration, executable and coordinator-source
+hashes to the selected allowance. The claim is never removed on failure.
+
+It initializes fresh monetary, Jev-call, request and generation journals; starts
+the real adapter and gateway; waits for local health responses; and rechecks the
+plan and executable hashes immediately before fleet admission. Exactly one worker
+processes the two tasks, without automatic retry or resume. Gateway and adapter
+children receive only their respective named provider credential plus a small
+base environment. Initializers receive neither key. Credentials are not written
+to the execution claim, commands or configuration files.
+
+After completion or exception, the coordinator stops its children and writes
+`execution-summary.json`. Unknown attempts remain reserved and an aborted plan
+cannot be rerun. Local logs and the fleet's raw captures remain private. A
+`fleet_finished` status means the task loop finished, not that both reviews
+succeeded or that all charges were reconciled. Inspect the recorded task outcomes
+and budget before considering another explicitly planned experiment.
+
+The coordinator was tested with fault injection for missing credentials,
+insufficient allowance, initialization failure, changed preflight after startup,
+unknown dispatch results and credential isolation. A separate local startup-only
+check used the actual Rust binaries and dummy credentials, replacing fleet dispatch
+with a no-request callback. Both services initialized, answered health checks and
+stopped; monetary attempts and provider calls were zero. This checks process
+orchestration, not the live provider contract. No real pilot has run yet, and the
+allowance question remains unanswered.
