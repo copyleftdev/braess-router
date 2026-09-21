@@ -7,9 +7,10 @@ are in [the dogfood plan](../docs/DOGFOOD.md).
 
 The recording component is a durable observer at Braess's HTTP boundary. It
 records real timings and routing responses without copying prompts, generated
-answers or authorization headers into its event log. It does not yet observe
-Jev probabilities, internal dispatch timestamps, Poise candidate scores or worker
-execution intervals. Missing observations must remain missing in a visualization.
+answers or authorization headers into its event log. Gateway response traces now
+retain Jev probabilities and local send/validation boundaries. Poise candidate
+scores, durable internal dispatch events and worker intervals remain unobserved.
+Missing observations remain missing; response traces can be lost on disconnect.
 
 ## Verify and run locally
 
@@ -120,6 +121,12 @@ the response. Missing endpoints stay unknown. These synthetic provider scores
 are not legal-accuracy estimates.
 
 ## Capture a local film draft
+
+For a reproducible film input, [freeze a private replay package](PACKAGE.md).
+It gathers the verified replay, source associations, optional scans, viewer and
+route analysis under a file-hash manifest. It can be served without the original
+corpus directories. The [source-navigation capture](SOURCE_FILM.md) demonstrates
+the private scan workflow; the generic fixture capture below covers fleet states.
 
 With the loopback preview running, Playwright available and FFmpeg/ffprobe on PATH:
 

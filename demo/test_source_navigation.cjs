@@ -1,11 +1,12 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const origin=process.env.BRAESS_REPLAY_URL||'http://127.0.0.1:4180';
 const out=path.join(__dirname,'../.impeccable/review');fs.mkdirSync(out,{recursive:true});
 (async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const results=[];
 try{
 for(const [name,width] of [['desktop',1440],['mobile',390]]){
  const page=await browser.newPage({viewport:{width,height:1000},reducedMotion:'reduce'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:4180');await page.locator('.inspect-source').waitFor();await page.evaluate(()=>document.fonts.ready);
+ await page.goto(origin);await page.locator('.inspect-source').waitFor();await page.evaluate(()=>document.fonts.ready);
  await page.locator('.inspect-source').click();
  assert.equal(await page.locator('.finding-box').count(),5);
  assert.ok((await page.locator('#source-context').textContent()).includes('Synthetic reviewer finding'));
@@ -16,7 +17,7 @@ for(const [name,width] of [['desktop',1440],['mobile',390]]){
  assert.equal(await page.locator('.finding-box').count(),5);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.locator('#source-zoom').selectOption('fit');
- const links=await(await page.request.get('http://127.0.0.1:4180/review-links.json')).json();const association=links.links[0],finding=association.review.findings[0];
+ const links=await(await page.request.get(origin+'/review-links.json')).json();const association=links.links[0],finding=association.review.findings[0];
  const boxes=await page.locator('.finding-box').evaluateAll(nodes=>nodes.map(n=>['x','y','width','height'].map(k=>Number(n.getAttribute(k)))));
  assert.deepEqual(boxes,finding.location.image_regions.map(r=>r.box));
  for(const variant of ['source','box','task']){
