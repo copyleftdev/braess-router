@@ -49,3 +49,40 @@ local fixtures, not paid inference. The committed web replay displays route
 probabilities, gate minimums and separate Jev/handler timing bars. Evidence only
 appears once the containing response is visible at the observer clock; missing
 timing endpoints remain unknown. Durable server-side telemetry remains pending.
+
+## Private route analysis
+
+```sh
+python3 demo/run_metrics.py RUN/recording NEW_METRICS.json
+```
+
+This creates a private, create-only analysis artifact from a sealed recording.
+It verifies the event chain, checks that input bytes remain unchanged during
+verification, and records source-file and analyzer hashes. It makes no provider
+calls and does not authorize publication. Task identifiers and provider metadata
+can still be private even though source document text is absent.
+
+Each task preserves modality, final observed route, model choice and gate scores,
+policy, requested/observed models, provider identifiers, terminal state and
+reason, token counts, reported generation cost, reservation, finding count, and
+the contributing event sequence numbers. The report includes route cohorts and
+a separate group for tasks without an observed route. Deferred, uncertain, and
+incomplete tasks remain represented.
+
+Timing summaries use nearest-rank p50/p95 with explicit observed and missing
+counts. Queue wait uses observer event offsets; request duration uses the
+observer's recorded elapsed milliseconds. Jev and handler intervals use their
+respective gateway send/validation boundaries. Gateway completion is an offset
+from gateway start. These clocks are not aligned or subtracted from one another.
+No measurement is invented for a missing boundary or absent response.
+
+Generation receipt subtotals retain decimal arithmetic. With no receipts, the
+subtotal is null. Reservations are retained separately and never added to
+charges. Total cost and savings remain null: the recording does not establish
+complete billing or a counterfactual baseline. Synthetic runs keep their scope;
+their cost receipts are fixture values, not actual provider charges.
+
+Route cohorts are descriptive observations, not randomized comparisons. A tiny
+sample's p95 is not a production latency estimate. Finding-span validation is
+not a measure of legal accuracy. These artifacts support later visualization;
+they are not yet loaded by the browser replay.
