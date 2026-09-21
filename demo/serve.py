@@ -56,7 +56,7 @@ if __name__ == '__main__':
     if any(review_args):
         if not all(review_args):parser.error('review-corpus, review-tasks and review-run are required together')
         from private_replay import assets
-        PRIVATE_ASSETS.update(assets(*review_args))
+        PRIVATE_ASSETS.update(assets(*review_args,inspector=args.evidence_bundle))
     if args.evidence_bundle:
         from inspector_assets import load_bundle
         PRIVATE_ASSETS.update(load_bundle(args.evidence_bundle))

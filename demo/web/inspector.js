@@ -9,7 +9,9 @@
     if (response.status === 404) return;
     panel.hidden = false;
     if (!response.ok) throw Error('manifest');
-    const m = await response.json();
+    const manifestBytes=await response.arrayBuffer();
+    const manifestSha256=await digest(manifestBytes);
+    const m=JSON.parse(new TextDecoder().decode(manifestBytes));
     if (m.schema_version !== 1 || !m.complete || m.publication_approved !== false || m.coordinate_unit !== 'source_page_pixels' || !Array.isArray(m.pages) || m.pages.length < 1 || m.pages.length > 32) throw Error('manifest');
     const asset = async (entry, name) => {
       if (entry.file !== name || !/^[a-f0-9]{64}$/.test(entry.sha256)) throw Error('asset');
@@ -41,9 +43,16 @@
     }
     const sourceImage = document.createElement('img'); sourceImage.id = 'source-image';
     $('source-image-slot').replaceWith(sourceImage);
-    let current = [], pageIndex = 0;
+    let current = [], pageIndex = 0, selection=null, replay=null;
+    const selectionNote=$('source-selection');
+    function clearFinding(){
+      selection=null; selectionNote.hidden=true;
+      document.querySelectorAll('.finding-box').forEach(node=>node.remove());
+      $('source-context').textContent='Private OCR inspection. No finding-to-task association is selected.';
+    }
     const wordText = w => characters.slice(w.start_character,w.end_character).join('');
     function chooseWord() {
+      clearFinding();
       const selected = current[Number($('source-word').value)];
       $('source-box').style.display = selected ? '' : 'none';
       $('source-transcript').replaceChildren();
@@ -65,7 +74,12 @@
         $('source-word-detail').textContent = 'No recognized words on this page.';
       }
     }
-    function zoom() { $('source-sheet').style.width = $('source-zoom').value === 'native' ? `${m.pages[pageIndex].width}px` : '100%'; }
+    function zoom() {
+      $('source-sheet').style.width = $('source-zoom').value === 'native' ? `${m.pages[pageIndex].width}px` : '100%';
+      const box=document.querySelector('.finding-box');
+      if(box){const viewport=document.querySelector('.source-viewport'),scale=$('source-sheet').clientWidth/m.pages[pageIndex].width;
+        viewport.scrollTo({left:Math.max(0,Number(box.getAttribute('x'))*scale-viewport.clientWidth/2),top:Math.max(0,Number(box.getAttribute('y'))*scale-viewport.clientHeight/3)});}
+    }
     function choosePage() {
       pageIndex = Number($('source-page').value);
       const p = m.pages[pageIndex];
@@ -83,6 +97,48 @@
     for (const [label,value] of [['Document',m.document_id],['Native source SHA-256',m.native_source_sha256],['OCR text SHA-256',m.source_sha256],['OCR mapping SHA-256',m.ocr_mapping_sha256],['Decoder',`${m.decoder.name} ${m.decoder.version}`]]) {
       const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;$('source-provenance').append(dt,dd);
     }
+    function resetFinding(){if(selection){clearFinding();chooseWord();}}
+    function setReplay(context){
+      replay=context;
+      if(selection && (context.run_id!==selection.run_id || context.task_id!==selection.task_id || context.review_sha256!==selection.review_sha256 || context.elapsed_ns<selection.visible_after))resetFinding();
+    }
+    function show(association,finding,page){
+      if(!replay || replay.run_id!==association.run_id || replay.task_id!==association.task_id || replay.review_sha256!==association.review_sha256 || replay.elapsed_ns<association.finding_visibility_after_elapsed_ns || association.inspector_manifest_sha256!==manifestSha256 || association.document_id!==m.document_id || association.source_sha256!==m.source_sha256 || association.native_source_sha256!==m.native_source_sha256 || association.ocr_mapping_sha256!==m.ocr_mapping_sha256 || !Number.isInteger(page) || !m.pages[page-1])return false;
+      if(!Number.isInteger(finding.start)||!Number.isInteger(finding.end)||finding.start<0||finding.end<=finding.start||finding.end>characters.length||characters.slice(finding.start,finding.end).join('')!==finding.quote)return false;
+      const matched=words.filter(w=>w.start_character<finding.end&&w.end_character>finding.start),regions=finding.location?.image_regions;
+      if(!Array.isArray(regions)||regions.length!==matched.length||regions.some((r,i)=>r.page!==matched[i].page||r.start_character!==matched[i].start_character||r.end_character!==matched[i].end_character||r.ocr_confidence!==matched[i].confidence||JSON.stringify(r.box)!==JSON.stringify(matched[i].box)))return false;
+      const onPage=matched.filter(w=>w.page===page);if(!onPage.length)return false;
+      $('source-page').value=String(page-1);choosePage();
+      selection={run_id:association.run_id,task_id:association.task_id,review_sha256:association.review_sha256,visible_after:association.finding_visibility_after_elapsed_ns};
+      $('source-box').style.display='none';$('source-boxes').style.visibility='visible';$('source-overlay').setAttribute('aria-pressed','true');
+      for(const w of onPage){
+        const box=document.createElementNS('http://www.w3.org/2000/svg','rect');box.classList.add('finding-box');
+        ['x','y','width','height'].forEach((key,i)=>box.setAttribute(key,w.box[i]));$('source-boxes').append(box);
+      }
+      $('source-transcript').replaceChildren();
+      for(const w of current){
+        // Partial-word findings highlight only quoted characters in text; image
+        // boxes retain OCR word granularity and are labeled as such.
+        const start=Math.max(w.start_character,finding.start),end=Math.min(w.end_character,finding.end);
+        if(start<end){
+          const before=characters.slice(w.start_character,start).join(''),after=characters.slice(end,w.end_character).join('');
+          const mark=document.createElement('mark');mark.textContent=characters.slice(start,end).join('');
+          $('source-transcript').append(before,mark,after,' ');
+        }else $('source-transcript').append(wordText(w),' ');
+      }
+      $('source-word').value=String(current.indexOf(onPage[0]));
+      $('source-word-detail').textContent=`${onPage.length} OCR word boxes on this page. Image locations use whole-word geometry.`;
+      $('source-context').textContent=`Linked to selected task ${association.document_id}. ${association.scope==='synthetic'?'Synthetic reviewer finding.':'Provisional reviewer finding.'}`;
+      selectionNote.textContent=`Finding ${finding.id} · page ${page} · source characters ${finding.start}–${finding.end}. Not a redaction.`;selectionNote.hidden=false;
+      panel.scrollIntoView({block:'start',behavior:'instant'});
+      $('source-page').focus({preventScroll:true});
+      const viewport=document.querySelector('.source-viewport'),scale=$('source-sheet').clientWidth/m.pages[page-1].width;
+      viewport.scrollTo({left:Math.max(0,onPage[0].box[0]*scale-viewport.clientWidth/2),top:Math.max(0,onPage[0].box[1]*scale-viewport.clientHeight/3)});
+      const mark=$('source-transcript').querySelector('mark'),transcript=$('source-transcript');
+      transcript.scrollTop+=mark.getBoundingClientRect().top-transcript.getBoundingClientRect().top-40;
+      return true;
+    }
+    window.braessSource=Object.freeze({manifestSha256,setReplay,show});
     $('source-page').addEventListener('change',choosePage);
     $('source-word').addEventListener('change',chooseWord);
     $('source-zoom').addEventListener('change',zoom);
@@ -91,6 +147,7 @@
       $('source-overlay').setAttribute('aria-pressed',String(show));$('source-boxes').style.visibility = show ? 'visible' : 'hidden';
     });
     $('source-content').hidden = false; choosePage();
+    window.dispatchEvent(new Event('braess-source-ready'));
     $('source-status').textContent = `${m.pages.length} pages · ${words.length} located words · asset hashes verified. Transcription accuracy has not been established.`;
   } catch (_) {
     panel.hidden = false; $('source-content').hidden = true;

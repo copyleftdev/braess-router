@@ -72,11 +72,52 @@ or validation timestamp hides findings and shows a recovery message.
 Live scope is supported in this private view with explicit live-provider labels
 and partial-cost wording. Verification to date used the saved synthetic discovery
 run; the live-label browser test intercepts fixtures and is not a paid live run.
-The default viewer and public fixture exporter remain separate. An independently
-loaded OCR inspector still has no automatic finding-to-page navigation; that
-integration and actual live corpus review remain pending.
+The default viewer and public fixture exporter remain separate. When an OCR inspector bundle is supplied for a reviewed document, the server
+reproduces its assets and binds the inspector manifest to that association.
+Finding-to-page navigation is then available; actual live corpus review remains
+pending.
 
 `demo/test_linked_replay.cjs` checks the four-task discovery fixture on port 4176,
 including task/clock isolation and mismatched association responses. The generic
 three-task browser suite accepts `BRAESS_REPLAY_URL` to test a separate default
 viewer instance.
+
+
+## Source-page navigation
+
+Add `--evidence-bundle INSPECTOR_BUNDLE` to the private replay command. Only
+findings whose inspector manifest matches the loaded bundle get an **Inspect
+source page** button. A cross-page finding gets a button for each recorded page.
+The viewer rechecks the selected run/task/review, source identities, quote,
+character offsets and every word box before navigating. It selects the source
+page, marks the quoted transcript characters and draws the associated OCR word
+regions. Partial-word text spans retain whole-word image geometry, explicitly
+labeled. These outlines are not redactions.
+
+Scrubbing before validation, changing the selected task, or manually choosing
+another source page/word clears the finding selection. Source-size zoom retains
+and recenters the finding. The standalone inspector remains available without
+claiming a relationship to the selected task.
+
+`ocr_fleet_smoke.py` exercises a real local gateway and adapter with one scripted
+Jev decision and reviewer response on a private OCR corpus. Example, using the
+previously imported TIFF (the quote is matched exactly):
+
+```sh
+python3 demo/ocr_fleet_smoke.py artifacts/enron-ocr-corpus-v1 NEW_RUN_DIRECTORY \
+  BUILT_BINARY_DIRECTORY --quote 'the US multinational company Enron'
+python3 demo/serve.py --port 4180 \
+  --review-corpus artifacts/enron-ocr-corpus-v1 \
+  --review-tasks NEW_RUN_DIRECTORY/prepared/tasks.json \
+  --review-run NEW_RUN_DIRECTORY/run \
+  --evidence-bundle NEW_RUN_DIRECTORY/inspector
+```
+
+This is a source-location integration fixture, not an assessment of legal
+relevance or actual model quality. It emits private checks, captured responses,
+validated review and inspector assets, without sending provider credentials or
+making external inference calls. `test_source_navigation.cjs` checks desktop and
+mobile behavior for this fixture, including exact source boxes, reset/page-change
+clearing and rejection of changed source/task/geometry associations. The real
+corpus ID revealed an overflow defect; task rows and evidence headings now wrap
+full IDs without truncation.

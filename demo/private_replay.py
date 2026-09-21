@@ -1,10 +1,10 @@
 """Assemble a verified replay and finding associations for the loopback viewer only."""
 from pathlib import Path
 from recording import canonical, verify
-from review_link import link, read
+from review_link import link, read, parse
 
 
-def assets(corpus,tasks,run):
+def assets(corpus,tasks,run,*,inspector=None):
     run=Path(run)
     for name,maximum in [('run.json',1024*1024),('seal.json',1024*1024),('events.jsonl',32*1024*1024)]:
         read(run/'recording'/name,maximum)
@@ -12,7 +12,13 @@ def assets(corpus,tasks,run):
     ids={e['task_id'] for e in replay['events']}
     if not 1<=len(ids)<=200:raise ValueError('private viewer supports 1..200 tasks')
     accepted=[e['task_id'] for e in replay['events'] if e['kind']=='task_completed' and e['data']['outcome']=='review_validated']
-    links=[link(corpus,tasks,run,task_id) for task_id in accepted]
+    inspector_document=parse(read(Path(inspector)/'manifest.json',1024*1024))['document_id'] if inspector else None
+    links=[]
+    for task_id in accepted:
+        association=link(corpus,tasks,run,task_id)
+        if association['document_id']==inspector_document:
+            association=link(corpus,tasks,run,task_id,inspector=inspector)
+        links.append(association)
     if replay['run']['scope']=='synthetic':
         description='Private recording with synthetic provider responses. Findings were checked against source spans; this does not establish review accuracy.'
     else:

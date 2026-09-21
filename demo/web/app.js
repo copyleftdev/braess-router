@@ -76,6 +76,7 @@
     if(key===inspectedKey)return;
     inspectedKey=key;
     const validation=events.find(e=>e.kind==='review_validated')?.data;
+    window.braessSource?.setReplay({run_id:bundle.run.run_id,task_id:task.id,elapsed_ns:clock,review_sha256:validation?.review_sha256||null});
     const reservation=events.find(e=>e.kind==='request_started')?.data;
     const failure=events.find(e=>e.kind==='task_uncertain')?.data.error;
     $('selected-title').textContent=task.document;
@@ -110,6 +111,14 @@
       article.append(element('h4',label[0].toUpperCase()+label.slice(1)),element('blockquote',finding.quote),element('p',finding.note));
       const regions=finding.location.image_regions||[];
       article.append(element('p','Source characters '+finding.start+'–'+finding.end+(regions.length?' · page '+[...new Set(regions.map(r=>r.page))].join(', '):''),'finding-location'));
+      if(association.inspector_manifest_sha256 && association.inspector_manifest_sha256===window.braessSource?.manifestSha256){
+        for(const page of [...new Set(regions.map(r=>r.page))]){
+          const button=element('button','Inspect source page '+page,'inspect-source');button.type='button';
+          button.addEventListener('click',()=>{
+            if(!window.braessSource.show(association,finding,page))$('findings-status').textContent='The source association could not be verified at this replay time.';
+          });article.append(button);
+        }
+      }
       list.append(article);
     }
   }
@@ -131,6 +140,7 @@
     }catch(_){linksFailed=true;}
     inspectedKey='';render();
   }
+  window.addEventListener('braess-source-ready',()=>{inspectedKey='';if(bundle)render();});
   function inspectDecision(trace,s){
     const decision=trace?.decision, pct=value=>(value*100).toFixed(1)+'%';
     $('route-scores').replaceChildren();$('gate-scores').replaceChildren();$('stage-times').replaceChildren();

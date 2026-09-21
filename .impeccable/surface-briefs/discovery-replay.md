@@ -233,6 +233,58 @@ The reviewer inspected both captures and implementation without an independent
 browser run. This update completes the bounded linked-findings documentation;
 it preserves the incumbent visual world without a design-system refresh.
 No provider calls or publication were performed for this extension. The default
-public exporter remains unchanged. The independently loaded actual OCR source
-remains separate, automatic finding-to-page navigation is pending, and live
-corpus review and the broader dogfood goal remain unfinished.
+public exporter remains unchanged. At that pass, the independently loaded actual
+OCR source remained separate and automatic finding-to-page navigation was
+pending. The subsequent source-navigation slice is documented below; live corpus
+review and the broader dogfood goal remain unfinished.
+
+## Verified finding-to-page navigation — 2026-09-21
+
+The private replay now offers **Inspect source page** only when a finding's
+bound inspector manifest matches the loaded source bundle. The server verifies
+the association against the native OCR source before serving it. The browser
+rechecks run, task, review, validation time, source identities, exact quote and
+every OCR region before opening the recorded page. Cross-page findings receive
+one button per associated page. A successful selection scrolls to the source,
+focuses the page control, outlines whole OCR words and marks only the quoted
+transcript characters. Whole-word image geometry and “Not a redaction” remain
+explicit; source-size zoom retains and recenters the selected finding.
+
+Scrubbing before validation or changing the task, source page or OCR word clears
+the finding selection and restores standalone OCR inspection. The monochrome
+square action, fine rules and pale transcript extend the incumbent world. Long
+native document IDs now wrap in task rows, evidence headings and source context
+at desktop and mobile widths. `DESIGN.md` and its sidecar remain unchanged.
+
+Evidence checked for this documentation pass:
+
+- Source: `demo/web/app.js`, `inspector.js`, `index.html`, `style.css`,
+  `inspector.css`, `demo/private_replay.py`, `demo/serve.py` and
+  `demo/REVIEW_LINK.md`, alongside product and design authority.
+- Full-page [desktop, 1440px](../review/source-navigation-desktop.png) and
+  [mobile, 390px](../review/source-navigation-mobile.png) captures were visually
+  inspected. They show one completed OCR task, its scripted source-location
+  finding, an inspect action, and the linked page with five word regions and
+  the exact quoted transcript span. These private source-bearing captures
+  remain review artifacts.
+- [Recorded browser results](../review/source-navigation-browser.json) pass
+  exact boxes and quote, reset and manual page-change clearing, and rejection
+  of changed source/task/box associations on desktop and mobile, with no page
+  errors or horizontal overflow. Source-size zoom was also checked by the
+  implementation owner. Manual word-change and task-change clearing were
+  inspected in code, not separately exercised in this browser pass. The
+  documenter read these results without independently rerunning the browser.
+- `artifacts/ocr-review-replay-v1/checks.json` records run
+  `c3253cb4-bbc6-487b-a1f7-2e17dc3fc0bb`: actual local Rust gateway and adapter
+  transports, one scripted decision and one scripted reviewer response against
+  the private native OCR source, five finding regions and zero external
+  provider calls. This establishes source-location integration, not model or
+  legal accuracy. The implementation owner reports four passing private-asset
+  unit tests; this documentation pass did not rerun them.
+
+Fresh reviewer disposition: **SHIP this UI slice after documentation; no
+material fixes required**. The reviewer inspected implementation, screenshots
+and recorded results without an independent browser run. This update completes
+the bounded navigation documentation. It records no paid live review,
+publication or completion of the broader dogfood goal; live corpus review and
+semantic-quality evaluation remain pending.

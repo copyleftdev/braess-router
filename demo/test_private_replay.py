@@ -26,4 +26,17 @@ class PrivateReplayTests(unittest.TestCase):
         with self.assertRaises(ValueError):assets(self.corpus,self.tasks,self.run)
 
 
+class OCRPrivateReplayTests(unittest.TestCase):
+    def test_matching_inspector_is_bound_before_serving(self):
+        from test_review_link import OCRReviewLinkTests
+        from evidence_bundle import build
+        if __import__('test_review_link').Image is None:self.skipTest('optional Pillow required')
+        fixture=OCRReviewLinkTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        fixture.record();inspector=fixture.root/'inspector'
+        build(fixture.corpus/'manifest.json',fixture.doc['document_id'],inspector)
+        result=assets(fixture.corpus,fixture.tasks,fixture.run,inspector=inspector)
+        links=json.loads(result['review-links.json'][0])
+        self.assertIsNotNone(links['links'][0]['inspector_manifest_sha256'])
+
+
 if __name__=='__main__':unittest.main()

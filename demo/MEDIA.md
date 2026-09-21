@@ -168,5 +168,5 @@ incomplete bundles and geometry bounds.
 
 Recorded reviews can now be checked against their source and inspector bundle
 using [the review association verifier](REVIEW_LINK.md). It revalidates the
-captured answer and reproduces inspector assets from the native source. UI
-consumption and actual live review associations remain pending.
+captured answer and reproduces inspector assets from the native source. The private replay now consumes these associations and offers verified
+finding-to-page navigation. Actual live review associations remain pending.
