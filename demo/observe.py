@@ -6,7 +6,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from recording import digest
+from recording import digest, validate_input_evidence
 from routing_trace import validate_trace
 
 
@@ -60,6 +60,15 @@ def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, es
             if key in body.get('usage', {}):
                 data['decision_' + key] = body['usage'][key]
         execution = body.get('handler_response', {}).get('execution', {})
+        if execution.get('input_evidence') is not None:
+            evidence = validate_input_evidence(execution['input_evidence'])
+            reference = json.loads(text)
+            if (evidence['reference_sha256'] != digest(text.encode())
+                    or not isinstance(reference, dict) or reference.get('kind') != 'vision_reference_v1'
+                    or reference.get('schema_version') != 1 or not isinstance(reference.get('pages'), list)
+                    or evidence['image_sha256'] != [page.get('sha256') for page in reference['pages']]):
+                raise ValueError('generation image receipt does not match submitted reference')
+            data['generation_input_evidence'] = evidence
         for source, target in [('model', 'generation_model'), ('requested_model', 'requested_model'),
                                ('provider', 'generation_provider'), ('generation_id', 'generation_id'), ('attempt_id', 'generation_attempt_id')]:
             if execution.get(source) is not None:

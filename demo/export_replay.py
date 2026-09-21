@@ -79,6 +79,8 @@ def export(source, destination, *, profile='gateway'):
     data = verify(source)
     if data['run']['scope'] != 'synthetic':
         raise ValueError('live public export requires content review; not implemented')
+    if any('generation_input_evidence' in event['data'] for event in data['events']):
+        raise ValueError('image receipt publication requires an explicit export profile')
     if profile not in ('gateway', 'fleet', 'discovery'):
         raise ValueError('unknown publication profile')
     if profile in ('fleet','discovery'):

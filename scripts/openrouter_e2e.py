@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -227,18 +228,36 @@ def run(output, binary):
             assert parts[0]=={'type':'text','text':reference['prompt']}
             assert parts[1]['type']=='image_url'
             assert base64.b64decode(parts[1]['image_url']['url'].split(',',1)[1],validate=True)==image
+            # Capture another real local call through the demo observer contract.
+            sys.path.insert(0,str(gateway.ROOT/'demo'))
+            from recording import Recorder, verify
+            from observe import observe
+            from run_metrics import metrics
+            recording=Recorder(output/'vision-recording',scope='synthetic',metadata={})
+            try:
+                recording.append('task_queued','vision-fixture',document_id='fixture-image',family_id='fixture-image',modality='image')
+                observe(recording,'vision-fixture',vgurl+'/route',reference_wire)
+            finally:
+                recording.close()
+            captured=verify(output/'vision-recording')
+            assert captured['summary']['completed']==1
+            observed=[e['data'] for e in captured['events'] if e['kind']=='response_received'][0]
+            assert observed['generation_input_evidence']==evidence
+            analysis=metrics(output/'vision-recording',output/'vision-metrics.json')
+            assert analysis['tasks'][0]['generation_input_evidence']==evidence
+            (output/'vision-reference.json').write_text(reference_wire)
             stop(vg); stop(vision_process)
             assert command([str(binary),'--config',str(vp)]).returncode!=0
             (bundle/'page-1.png').write_bytes(image)
             restored,restored_url=start(vp)
-            assert request(restored_url+'/status')['body']['completed']==1
+            assert request(restored_url+'/status')['body']['completed']==2
             stop(restored)
             journal_text=Path(vc['journal_path']).read_text()
             assert image_hash in journal_text and reference['prompt'] not in journal_text and 'base64' not in journal_text
             result['vision_response']=vision_response
             result['vision_checks']=['invalid references refused before reservation','immutable source bytes',
                                      'gateway to multipart handler','exact PNG round trip','source hashes in durable receipt',
-                                     'changed source refuses restart']
+                                     'changed source refuses restart','observer and analysis retain bound image evidence']
         finally:
             jev.close()
         stop(p)

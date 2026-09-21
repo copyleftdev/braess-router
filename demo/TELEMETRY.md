@@ -52,6 +52,22 @@ timing endpoints remain unknown. Durable server-side telemetry remains pending.
 
 ## Private route analysis
 
+Image-reference completions additionally carry `generation_input_evidence` on
+the response event: the exact submitted reference-string SHA-256 and ordered
+PNG hashes. The observer checks those hashes against its submitted reference
+before accepting the response metadata. The field accepts only bounded hashes,
+never prompts, image bytes or URLs. A mismatch produces an uncertain observation;
+missing evidence remains absent and is null in route analysis, even when the
+original source modality is image. OCR source modality alone does not imply
+that the reviewer received pixels.
+
+The local OpenRouter integration now records a real synthetic-provider image
+call through this observer and checks that the same evidence reaches analysis.
+This proves transport provenance, not that a model understood the image or
+produced a correct finding. The browser does not yet display these input hashes.
+Existing public export profiles reject this field until a dedicated publication
+profile exists; private packaging preserves it with the recording.
+
 ```sh
 python3 demo/run_metrics.py RUN/recording NEW_METRICS.json
 ```

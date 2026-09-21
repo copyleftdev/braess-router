@@ -70,6 +70,7 @@ def metrics(directory, output):
                      'requested_model': response.get('requested_model'),
                      'generation_provider': response.get('generation_provider'),
                      'generation_id': response.get('generation_id'),
+                     'generation_input_evidence': response.get('generation_input_evidence'),
                      'terminal_reason': events[-1]['data'].get('error', events[-1]['data'].get('reason')),
                      'http_status': response.get('http_status'),
                      'observer_request_ms': response.get('elapsed_ms'),

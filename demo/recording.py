@@ -26,7 +26,7 @@ FIELDS = {
                           'decision_input_tokens', 'decision_output_tokens',
                           'generation_model', 'requested_model', 'generation_provider', 'generation_id',
                           'generation_input_tokens', 'generation_output_tokens',
-                          'generation_cost_usd', 'generation_attempt_id', 'routing_trace'},
+                          'generation_cost_usd', 'generation_attempt_id', 'routing_trace', 'generation_input_evidence'},
     'review_validated': {'review_sha256', 'finding_count'},
     'task_deferred': {'reason'},
     'task_completed': {'outcome'},
@@ -59,6 +59,16 @@ def label(value):
     return isinstance(value, str) and 0 < len(value) <= 256 and all(ord(c) >= 32 for c in value)
 
 
+def validate_input_evidence(value):
+    def sha(text):
+        return isinstance(text, str) and len(text) == 64 and all(c in '0123456789abcdef' for c in text)
+    if (not isinstance(value, dict) or set(value) != {'reference_sha256', 'image_sha256'}
+            or not sha(value['reference_sha256']) or not isinstance(value['image_sha256'], list)
+            or not 1 <= len(value['image_sha256']) <= 8 or not all(sha(s) for s in value['image_sha256'])):
+        raise ValueError('invalid generation input evidence')
+    return {'reference_sha256': value['reference_sha256'], 'image_sha256': list(value['image_sha256'])}
+
+
 def validate(event, states):
     expected = {'schema_version', 'run_id', 'seq', 'elapsed_ns', 'at', 'kind', 'task_id', 'data', 'previous_sha256'}
     if set(event) - {'sha256'} != expected:
@@ -69,7 +79,9 @@ def validate(event, states):
     if not REQUIRED[kind] <= data.keys() or data.keys() - FIELDS[kind]:
         raise ValueError('invalid event fields')
     for key, value in data.items():
-        if key == 'routing_trace':
+        if key == 'generation_input_evidence':
+            validate_input_evidence(value)
+        elif key == 'routing_trace':
             trace = validate_trace(value)
             if trace['decision'] and any(k in data and data[k] != trace['decision'][k] for k in ('route','reason')):
                 raise ValueError('response contradicts routing trace')
