@@ -3,7 +3,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {execFileSync}=require('child_process');
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
-const root=path.resolve(__dirname,'..'),origin='http://127.0.0.1:4180';
+const root=path.resolve(__dirname,'..'),origin=process.env.BRAESS_REPLAY_URL||'http://127.0.0.1:4180';
+const preview=new URL(origin);
+if(preview.protocol!=='http:'||preview.hostname!=='127.0.0.1'||preview.origin!==origin)throw Error('Capture requires a loopback HTTP origin');
 const sourceFiles=['demo/web/index.html','demo/web/style.css','demo/web/app.js','demo/web/inspector.css','demo/web/inspector.js',
  'demo/serve.py','demo/private_replay.py','demo/review_link.py','demo/record_source_film.cjs',
  'site/assets/archivo-400.woff2','site/assets/archivo-600.woff2','site/assets/mark.svg'];
@@ -21,6 +23,8 @@ const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.re
    const response=await page.request.get(origin+'/'+name);if(!response.ok())throw Error('Capture asset unavailable');
    const raw=await response.body();assets[name]=hash(raw);return raw;
   }
+  for(const name of ['index.html','style.css','app.js','inspector.css','inspector.js',
+    'assets/archivo-400.woff2','assets/archivo-600.woff2','assets/mark.svg'])await captureAsset(name);
   const recording=JSON.parse(await captureAsset('replay.json')),links=JSON.parse(await captureAsset('review-links.json'));
   const evidence=JSON.parse(await captureAsset('evidence/manifest.json'));
   if(recording.run.scope!=='synthetic'||!recording.sealed||recording.presentation.profile!=='private_review'||links.run_id!==recording.run.run_id||links.links.length!==1||links.links[0].inspector_manifest_sha256!==assets['evidence/manifest.json'])throw Error('Expected one verified synthetic OCR review');
@@ -39,6 +43,8 @@ const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.re
   await page.getByRole('button',{name:'Play replay',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('status').textContent.startsWith('End of recording'),{},{timeout:15000});
   await page.waitForTimeout(1500);
+  await page.locator('.route-comparison').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
+  await mark('visible route comparison and observation coverage');await page.waitForTimeout(4000);
   await page.locator('.review').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
   await mark('decision metadata and source-validated result');await page.waitForTimeout(3500);
   await page.locator('#linked-findings').evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));
@@ -76,7 +82,8 @@ const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.re
    scope:'private OCR source-navigation film draft; real local routing with scripted providers',
    run_id:recording.run.run_id,task_id:association.task_id,document_id:association.document_id,
    source_hashes:sources,served_asset_hashes:assets,steps,probe,
-   timing:'Capture wall time is distinct from observer time and gateway offsets.',
+   preview_origin:origin,
+   timing:'Scene elapsed time begins after page readiness, excludes loading pre-roll and is not exact video PTS. Observer time and gateway offsets remain separate.',
    external_provider_calls:0,contains_private_source_content:true,publication_approved:false,
    semantic_accuracy:'not_evaluated',artifacts:{'source-replay.webm':hash(fs.readFileSync(webm)),'source-replay.mp4':hash(fs.readFileSync(mp4))}},null,2)+'\n',{flag:'wx',mode:0o600});
   console.log(JSON.stringify({passed:true,output:destination,duration_seconds:Number(probe.format.duration),external_provider_calls:0}));
