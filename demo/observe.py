@@ -7,6 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from recording import digest
+from routing_trace import validate_trace
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -49,6 +50,8 @@ def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, es
             raise ValueError('response object required')
         data = {'http_status': status, 'response_sha256': digest(raw),
                 'elapsed_ms': (time.monotonic_ns() - started) / 1e6}
+        if body.get('routing_trace') is not None:
+            data['routing_trace'] = validate_trace(body['routing_trace'])
         for source, target in [('route', 'route'), ('reason', 'reason'), ('model', 'decision_model'),
                                ('policy_version', 'policy_version'), ('handler_index', 'handler_index')]:
             if body.get(source) is not None:

@@ -57,8 +57,10 @@ The private run directory contains a hashed input manifest, hash-chained recordi
 raw gateway responses, validated review reports and a budget/result summary.
 Review events refer to report hashes and counts; they do not copy quotations into
 the metadata log. Generation IDs and usage are recorded when supplied by the
-adapter. Internal Jev probabilities and dispatch intervals still require gateway
-instrumentation; current timings are measured at the observer boundary.
+adapter. New gateway responses also retain validated decision distributions,
+thresholds and local send/validation boundaries, including partial traces on
+failures. [Timing semantics and limits](TELEMETRY.md) distinguish these gateway
+offsets from observer timestamps and actual model inference time.
 
 Do not re-run an uncertain task merely because its run directory has been sealed.
 Sealing means the local log closed, not that upstream work stopped. A new run has

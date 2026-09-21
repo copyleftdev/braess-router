@@ -13,6 +13,7 @@ from pathlib import Path
 import threading
 import time
 import uuid
+from routing_trace import validate_trace
 
 VERSION = 1
 MAX_EVENTS = 100_000
@@ -25,7 +26,7 @@ FIELDS = {
                           'decision_input_tokens', 'decision_output_tokens',
                           'generation_model', 'requested_model', 'generation_provider', 'generation_id',
                           'generation_input_tokens', 'generation_output_tokens',
-                          'generation_cost_usd', 'generation_attempt_id'},
+                          'generation_cost_usd', 'generation_attempt_id', 'routing_trace'},
     'review_validated': {'review_sha256', 'finding_count'},
     'task_deferred': {'reason'},
     'task_completed': {'outcome'},
@@ -68,7 +69,11 @@ def validate(event, states):
     if not REQUIRED[kind] <= data.keys() or data.keys() - FIELDS[kind]:
         raise ValueError('invalid event fields')
     for key, value in data.items():
-        if key in INTEGER_FIELDS:
+        if key == 'routing_trace':
+            trace = validate_trace(value)
+            if trace['decision'] and any(k in data and data[k] != trace['decision'][k] for k in ('route','reason')):
+                raise ValueError('response contradicts routing trace')
+        elif key in INTEGER_FIELDS:
             if type(value) is not int or value < 0:
                 raise ValueError('invalid count')
         elif key == 'elapsed_ms':

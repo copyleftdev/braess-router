@@ -238,6 +238,25 @@ def run(binary, output):
                       'expected_handler': dispatched, 'response': result, 'status_after': status}
             records.append(record)
             require(result['status'] == expected_status, f'{name}: {result}')
+            if name not in ('unknown_field', 'oversized_input'):
+                trace = result['body']['routing_trace']
+                boundaries = [trace[k] for k in ('decision_send_started_ns', 'decision_validated_ns',
+                              'handler_send_started_ns', 'handler_validated_ns', 'finished_ns') if trace[k] is not None]
+                require(boundaries == sorted(boundaries), f'{name}: unordered routing trace')
+                require(trace['decision_send_started_ns'] is not None, f'{name}: missing decision send start')
+                if dispatched is not None or name == 'uncertain':
+                    evidence = trace['decision']
+                    require(evidence['choice'] == (dispatched or 'general'), f'{name}: wrong model choice')
+                    require(evidence['probabilities'][evidence['choice']] == .97, 'wrong model probability')
+                    require(evidence['confidence'] == (.1 if name == 'uncertain' else .99), 'wrong confidence')
+                    require(trace['decision_validated_ns'] is not None, 'validated decision not timed')
+                else:
+                    require(trace['decision'] is None and trace['decision_validated_ns'] is None,
+                            f'{name}: failed decision falsely validated')
+                require((trace['handler_send_started_ns'] is not None) == (dispatched is not None),
+                        f'{name}: incorrect handler dispatch observation')
+                require((trace['handler_validated_ns'] is not None) == (name in ('general','coding','reasoning')),
+                        f'{name}: incorrect handler validation observation')
             require(MARKER not in json.dumps(result), f'{name}: private upstream body escaped')
             handlers = [event for event in fixtures.events if event['path'] != '/v1/systemone']
             require([event['path'] for event in handlers] == ([] if dispatched is None else ['/' + dispatched]),
@@ -256,6 +275,8 @@ def run(binary, output):
         records.append({'case': 'budget', 'responses': responses, 'status_after': request(url + '/status')})
         require([r['status'] for r in responses[:2]] == [200, 200], 'budget rejected valid calls')
         require(responses[2]['status'] >= 400, 'budget permitted an extra call')
+        require(responses[2]['body']['routing_trace']['decision_send_started_ns'] is None,
+                'budget refusal falsely reports Jev dispatch')
         require(sum(e['path'] == '/v1/systemone' for e in fixtures.events) == 2, 'Jev budget exceeded')
 
     with gateway(binary, output, 'concurrency', admission_limit=1, deadline_ms=2000) as (url, fixtures):
@@ -270,6 +291,9 @@ def run(binary, output):
         records.append({'case': 'concurrency', 'held': first, 'rejected': rejected, 'replacement': after,
                         'status_during': during, 'status_after': request(url + '/status')})
         require(rejected['status'] >= 400, 'concurrent admission exceeded cap')
+        trace = rejected['body'].get('routing_trace')
+        require(trace is None or trace['decision_send_started_ns'] is None,
+                'admission refusal falsely reports Jev dispatch')
         require(first['status'] == after['status'] == 200, 'permit did not recover after success')
         require(sum(e['path'] == '/v1/systemone' for e in fixtures.events) == 2, 'rejected work reached Jev')
 

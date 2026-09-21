@@ -136,7 +136,9 @@ costs. A future film export must use the same event-driven renderer as playback.
 
 ## Next implementation boundaries
 
-- Internal decision/dispatch/completion events with task correlation.
+- Visualize the newly recorded [routing traces](TELEMETRY.md), including decision
+  distributions and partial failure timings. Durable server-side events remain
+  separate work; response traces cannot survive every client disconnect.
 - Conservative pricing estimates and full receipt reconciliation; shared durable
   reservations and observer dispatch gating are implemented and tested.
 - Join sampled native media to text IDs and implement vision review. A bounded

@@ -41,6 +41,10 @@ def check_fleet(data):
         if event['task_id'] not in FLEET_TASKS:
             raise ValueError('unexpected fleet task')
         for key, value in event['data'].items():
+            if key == 'routing_trace':
+                decision = value['decision']
+                if decision and set(decision['probabilities']) != {'general','coding','reasoning','fallback'}:
+                    raise ValueError('unapproved decision catalog')
             if not isinstance(value, str):
                 continue  # recording.verify already validates numeric fields.
             if key in ('document_id', 'family_id'):
@@ -79,6 +83,8 @@ def export(source, destination, *, profile='gateway'):
         data['presentation'].update(title='Review fleet observation study',
             description='Real Braess and adapter execution with synthetic Jev and reviewer responses. Source-span validation and budget gating ran locally; no legal corpus or paid inference.',
             approval='allowlisted fleet fixture metadata only')
+    if any('routing_trace' in event['data'] for event in data['events']):
+        data['presentation']['internal_decision_timing'] = 'gateway monotonic boundaries; only present traces observed'
     Path(destination).write_bytes(canonical(data) + b'\n')
 
 

@@ -80,6 +80,12 @@ def smoke(output,binary):
         assert result['summary']['completed']==1 and result['summary']['uncertain']==1 and result['summary']['deferred']==1
         assert len(requests)==2 and all(not r['authorization_present'] for r in requests)
         assert sum(e['kind']=='review_validated' for e in result['events'])==1
+        for event in result['events']:
+            if event['kind']=='response_received':
+                trace=event['data']['routing_trace']
+                assert trace['handler_validated_ns'] is not None
+                assert trace['decision']['choice']=='general'
+                assert trace['decision']['probabilities']['general']==.97
         assert len(list((output/'run/private').glob('*.response.json')))==2
         assert len(list((output/'run/private').glob('*.review.json')))==1
         assert ledger.inspect()['unresolved']==2

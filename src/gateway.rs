@@ -1,6 +1,6 @@
 //! Bounded, process-local semantic router. Configuration is operator-owned.
 use crate::{
-    Response, Rubric, Usage, gate,
+    Answer, Response, Rubric, Usage, gate,
     ledger_http::{HttpLedgerError, LedgerResponse},
     request_ledger::{LedgerConfig, LedgerError, RequestLedger},
 };
@@ -219,6 +219,7 @@ pub struct GatewayFailure {
     pub status: u16,
     pub code: String,
     pub retry_after_seconds: Option<u64>,
+    pub routing_trace: Option<Box<RoutingTrace>>,
 }
 impl GatewayFailure {
     fn new(status: u16, code: &str) -> Self {
@@ -226,6 +227,7 @@ impl GatewayFailure {
             status,
             code: code.into(),
             retry_after_seconds: None,
+            routing_trace: None,
         }
     }
 }
@@ -239,6 +241,37 @@ pub struct GatewayResponse {
     pub latency_ms: f64,
     pub usage: Usage,
     pub handler_index: Option<usize>,
+    pub routing_trace: Option<RoutingTrace>,
+}
+
+/// Local monotonic offsets from execute entry. A send start is not a remote
+/// acknowledgement. Missing boundaries remain unknown, including on timeouts.
+#[derive(Debug, Default, Serialize)]
+pub struct RoutingTrace {
+    pub decision_send_started_ns: Option<u64>,
+    pub decision_validated_ns: Option<u64>,
+    pub handler_send_started_ns: Option<u64>,
+    pub handler_validated_ns: Option<u64>,
+    pub finished_ns: u64,
+    pub decision: Option<DecisionEvidence>,
+}
+
+/// Provider scores and configured thresholds, not calibrated review accuracy.
+#[derive(Debug, Serialize)]
+pub struct DecisionEvidence {
+    pub choice: String,
+    pub probabilities: BTreeMap<String, f64>,
+    pub confidence: f64,
+    pub supported: f64,
+    pub min_confidence: f64,
+    pub min_probability: f64,
+    pub min_supported: f64,
+    pub route: String,
+    pub reason: String,
+}
+
+fn offset_ns(start: Instant) -> u64 {
+    u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX)
 }
 fn transport_failure(error: HttpLedgerError, code: &str) -> GatewayFailure {
     match error {
@@ -569,17 +602,24 @@ impl Gateway {
         json!({"jev_rate_limit":self.rate_limit.as_ref().map(|r| r.snapshot()),"request_journal":self.durable_requests.as_ref().map(|j| j.snapshot()),"mode":self.config.mode,"offered":self.offered.load(Ordering::Relaxed),"completed":self.completed.load(Ordering::Relaxed),"failed":self.failed.load(Ordering::Relaxed),"cancelled":self.cancelled.load(Ordering::Relaxed),"fallbacks":self.fallbacks.load(Ordering::Relaxed),"budget_durable":self.durable_budget.is_some(),"jev_calls_reserved":self.durable_budget.as_ref().map_or_else(|| self.calls.load(Ordering::Relaxed), |b| b.used()),"max_jev_calls":self.config.max_jev_calls,"jev_ledger":self.jev.snapshot(),"handler_ledgers":handlers})
     }
     pub async fn execute(&self, input: GatewayRequest) -> Result<GatewayResponse, GatewayFailure> {
+        let start = Instant::now();
+        let mut trace = RoutingTrace::default();
         self.offered.fetch_add(1, Ordering::Relaxed);
         let mut execution = Execution {
             cancelled: &self.cancelled,
             finished: false,
         };
-        let result = tokio::time::timeout(
+        let mut result = tokio::time::timeout(
             Duration::from_millis(self.config.deadline_ms),
-            self.execute_inner(input),
+            self.execute_inner(input, start, &mut trace),
         )
         .await
         .unwrap_or_else(|_| Err(GatewayFailure::new(504, "deadline_exceeded")));
+        trace.finished_ns = offset_ns(start);
+        match &mut result {
+            Ok(response) => response.routing_trace = Some(trace),
+            Err(failure) => failure.routing_trace = Some(Box::new(trace)),
+        }
         execution.finished = true;
         match &result {
             Ok(r) => {
@@ -611,8 +651,9 @@ impl Gateway {
     async fn execute_inner(
         &self,
         input: GatewayRequest,
+        start: Instant,
+        trace: &mut RoutingTrace,
     ) -> Result<GatewayResponse, GatewayFailure> {
-        let start = Instant::now();
         if input.request.trim().is_empty() || input.request.len() > self.config.max_request_bytes {
             return Err(GatewayFailure::new(400, "invalid_request"));
         }
@@ -649,6 +690,7 @@ impl Gateway {
                 .commit()
                 .map_err(|_| GatewayFailure::new(503, "jev_rate_unavailable"))?;
         }
+        trace.decision_send_started_ns = Some(offset_ns(start));
         let mut response = LedgerResponse::send(request, attempt)
             .await
             .map_err(|e| transport_failure(e, "jev_transport_error"))?;
@@ -660,6 +702,29 @@ impl Gateway {
         response
             .validated()
             .map_err(|_| GatewayFailure::new(500, "ledger_error"))?;
+        // gate already checked all types, labels, scores and policy thresholds.
+        if let (
+            Some(Answer::Choice {
+                choice,
+                probabilities,
+                confidence,
+            }),
+            Some(Answer::Noul { noul }),
+        ) = (parsed.answers.get("route"), parsed.answers.get("supported"))
+        {
+            trace.decision = Some(DecisionEvidence {
+                choice: choice.clone(),
+                probabilities: probabilities.clone(),
+                confidence: *confidence,
+                supported: *noul,
+                min_confidence: self.rubric.min_confidence,
+                min_probability: self.rubric.min_probability,
+                min_supported: self.rubric.min_supported,
+                route: decision.route.clone(),
+                reason: decision.reason.clone(),
+            });
+        }
+        trace.decision_validated_ns = Some(offset_ns(start));
         self.journal_complete(journal_id).await?;
         let (handler_response, handler_index) = if decision.route == "fallback" {
             (
@@ -717,6 +782,7 @@ impl Gateway {
                 .client
                 .post(&endpoints[index].url)
                 .json(&json!({"request":input.request,"route":decision.route}));
+            trace.handler_send_started_ns = Some(offset_ns(start));
             let mut response = LedgerResponse::send(request, attempt)
                 .await
                 .map_err(|e| transport_failure(e, "handler_transport_error"))?;
@@ -726,6 +792,7 @@ impl Gateway {
             response
                 .validated()
                 .map_err(|_| GatewayFailure::new(500, "ledger_error"))?;
+            trace.handler_validated_ns = Some(offset_ns(start));
             self.journal_complete(journal_id).await?;
             (value, Some(index))
         };
@@ -738,6 +805,7 @@ impl Gateway {
             usage: parsed.usage,
             handler_index,
             latency_ms: start.elapsed().as_secs_f64() * 1000.0,
+            routing_trace: None,
         })
     }
 }
