@@ -87,15 +87,31 @@ python3 demo/serve.py
 Open http://127.0.0.1:4174. The server exposes an explicit asset allowlist, never
 the repository root. The preview starts paused, supports keyboard playback and
 scrubbing, and shows a task inspector with event timestamps and hashes. It makes
-no provider calls. It currently displays six synthetic protocol tasks, not the
-planned legal corpus. The cost total stays unknown because the source has no
-complete billing record.
+no provider calls. It now displays the three-task fleet smoke: one source-validated
+review, one rejected quote retained as uncertain, and one budget deferral. The
+Jev and reviewer responses are synthetic; actual Braess execution, validation and
+admission gating were measured. The cost total stays unknown because the source
+has no complete billing record. Per-response costs are synthetic fixture receipts.
 
 `demo/export_replay.py RECORDING demo/web/replay.json` verifies a sealed smoke
-recording before exporting it. The exporter only accepts the six synthetic fixture
-IDs; live recordings require a future content-review/export gate. Browser parsing
+recording before exporting it. Its default profile accepts the original six
+gateway fixture IDs. The explicit fleet profile accepts only pinned fleet task
+IDs and allowlisted metadata labels, with no source text or raw responses:
+
+```sh
+python3 demo/export_replay.py artifacts/fleet-check/run/recording demo/web/replay.json --profile fleet
+```
+
+Live recordings require a future content-review/export gate. Browser parsing
 checks basic shape; the Python verifier is the integrity authority. Hashes alone
 are not an authenticity proof.
+
+The committed replay was exported from `artifacts/discovery-fleet-ocr-link-v1`:
+three tasks, eleven events, 35.20 ms observed elapsed time. The task inspector
+shows source-validation counts, route/model/provider, tokens, admission estimate,
+receipt cost, event times and provenance hashes. It only reveals events at or
+before the replay clock. A deferred square stays at intake; an uncertain diamond
+remains separate from accepted completion even after a successful HTTP response.
 
 ## Visualization notes carried forward
 

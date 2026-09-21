@@ -4,16 +4,25 @@ const fs=require('fs');const path=require('path');const out=path.join(__dirname,
 for(const [name,width] of [['desktop',1440],['mobile',390]]){
  const page=await browser.newPage({viewport:{width,height:1000},reducedMotion:'reduce'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:4174');await page.getByRole('button',{name:'Play replay',exact:true}).waitFor();await page.waitForFunction(()=>!document.getElementById('play').disabled);await page.evaluate(()=>document.fonts.ready);
- if(await page.locator('#completed').textContent()!=='4')throw Error('Final completed count');
- if(await page.locator('#uncertain').textContent()!=='2')throw Error('Final uncertain count');
+ if(await page.locator('#completed').textContent()!=='1')throw Error('Final completed count');
+ if(await page.locator('#uncertain').textContent()!=='1')throw Error('Final uncertain count');
+ if(await page.locator('#deferred').textContent()!=='1')throw Error('Final deferred count');
+ if(!(await page.locator('#selected-description').textContent()).includes('matched the source'))throw Error('Validated evidence missing');
  await page.screenshot({path:out+'discovery-'+name+'.png',fullPage:true});
  await page.getByRole('button',{name:'Start',exact:true}).click();if(await page.locator('#completed').textContent()!=='0')throw Error('Start count');
+ if(await page.locator('#deferred').textContent()!=='0'||await page.locator('#uncertain').textContent()!=='0')throw Error('Future outcomes leaked');
+ if((await page.locator('#provenance').textContent()).includes('Validated review SHA-256'))throw Error('Future review provenance leaked');
  await page.locator('#seek').evaluate(e=>{e.value='500';e.dispatchEvent(new Event('input',{bubbles:true}))});if(await page.locator('#seek').inputValue()!=='500')throw Error('Seek failed');
  await page.locator('#seek').evaluate(e=>{e.value='1000';e.dispatchEvent(new Event('input',{bubbles:true}))});
- await page.locator('.task-row').last().click();if(await page.locator('#selected-state').textContent()!=='Uncertain')throw Error('Task inspect failed');
+ await page.locator('.task-row').nth(1).click();if(await page.locator('#selected-state').textContent()!=='Uncertain')throw Error('Task inspect failed');
+ if(!(await page.locator('#selected-description').textContent()).includes('failed validation'))throw Error('Rejected evidence missing');
+ await page.locator('.task-row').last().click();if(await page.locator('#selected-state').textContent()!=='Deferred')throw Error('Deferred state missing');
+ if(!(await page.locator('#selected-description').textContent()).includes('before dispatch'))throw Error('Deferral explanation missing');
  await page.getByRole('button',{name:'Play replay',exact:true}).click();await page.getByRole('button',{name:'Pause replay',exact:true}).click();
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
- results.push({name,errors,overflow,controls:'passed',font:await page.evaluate(()=>document.fonts.check('400 16px Archivo'))});
+ const font=await page.evaluate(()=>document.fonts.check('400 16px Archivo'));
+ if(errors.length||overflow||!font)throw Error('Browser quality check failed: '+JSON.stringify({name,errors,overflow,font}));
+ results.push({name,errors,overflow,controls:'passed',font});
  await page.close();
 }
 const errorPage=await browser.newPage();await errorPage.route('**/replay.json',r=>r.fulfill({status:404,body:'missing'}));await errorPage.goto('http://127.0.0.1:4174');await errorPage.getByText('Recording unavailable',{exact:true}).waitFor();results.push({errorState:true,disabled:await errorPage.locator('#play').isDisabled()});

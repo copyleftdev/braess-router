@@ -66,7 +66,9 @@ a new observation ID and is a deliberate new attempt; cross-run deduplication an
 a resume/adjudication controller are not implemented. Task and budget outcomes
 remain distinct from complete billing reconciliation.
 
-The web replay is still the six-task protocol slice. It does not yet consume these
-review events or source documents, and the export gate continues to refuse live
+The web replay now consumes these review and deferral events through the explicit
+`fleet` publication profile. It shows metadata from the three authored fixtures,
+including source-validation counts and admission reservations. It contains no
+source documents or raw reviewer responses, and the export gate refuses live
 content. The legal corpus has prepared tasks but has not been sent to a provider.
 Paid execution remains gated on the selected dollar cap and verified estimates.
