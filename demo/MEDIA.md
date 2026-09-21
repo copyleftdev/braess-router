@@ -92,11 +92,11 @@ vision-model support or OCR transcription accuracy.
 The native prefix begins in a different part of the archive from the existing
 40-document text sample. Join by verified native/text IDs before showing family
 context; do not imply these are the same reviewed documents. Image-region
-coordinates are available for evidence inspection; the replay still needs the
-corresponding private image viewer.
+coordinates are available in the optional private inspector described below;
+linking a source page to a recorded review task still needs a verified association.
 
 Next stages are native/text joins, OCR/vision task routing, a tested image-capable
-provider handler, source-linked evidence inspection and approved public excerpts.
+provider handler, recorded review-to-source links and approved public excerpts.
 The current web replay contains no native images or real Enron text. Audio and
 video workers remain planned, contingent on actual corpus media or a separately
 identified supplemental dataset.
@@ -130,3 +130,38 @@ The actual two-page TIFF exported with all 581 OCR word locations. Tests compare
 synthetic multipage source pixels against exported PNG pixels and reject mapping
 page-count/dimension mismatches. The next UI integration can load these explicit
 assets and use the same source-page pixel coordinate system for highlights.
+
+### Inspect locally
+
+```sh
+python3 demo/serve.py --port 4175 --evidence-bundle NEW_DIRECTORY
+```
+
+Open `http://127.0.0.1:4175` and scroll to **Back to the source**. Page selection,
+fit-width/source-size views and the word selector connect each OCR location to
+the scan. The outlined box is an OCR word location, not a redaction or a model
+finding. A page transcript, extraction confidence and source hashes remain
+available alongside the image. Python character offsets are interpreted as
+Unicode code points in the browser, including non-BMP characters.
+
+The server verifies the selected bundle's page/text/word hashes on startup and
+freezes only those explicit assets in memory. Unlisted files and repository
+paths are not served. Restart after deliberately choosing a different bundle.
+The browser verifies asset hashes and decoded page dimensions again before
+showing content. A corrupt bundle produces an explicit error; without the
+optional argument, the source-inspection section stays hidden. The private view
+makes no provider calls and is not included in the GitHub Pages site.
+
+The real document is explicitly separate from the synthetic routing replay.
+Connecting a source to a task requires a matching recorded live review; the
+inspector does not invent that association. Public exports still require their
+own reviewed source selection. Screenshots containing source pages remain in the
+ignored `.impeccable/review` directory.
+
+Browser checks: run `node demo/test_inspector.cjs` against the command above,
+with `PLAYWRIGHT_MODULE` set if Playwright is installed outside normal module
+resolution. The current test uses the two-page, 581-word local TIFF bundle;
+it checks desktop/mobile controls, overflow, fonts, unavailable/private paths,
+missing-bundle behavior and rejection of a changed word asset. Asset loader
+unit tests cover hash tampering, immutable served bytes, path names, symlinks,
+incomplete bundles and geometry bounds.

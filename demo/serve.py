@@ -7,21 +7,28 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 ASSETS = {name: (ROOT/'web'/name, mime) for name, mime in
           [('index.html','text/html; charset=utf-8'), ('style.css','text/css'),
-           ('app.js','text/javascript'), ('replay.json','application/json')]}
+           ('app.js','text/javascript'), ('inspector.js','text/javascript'),
+           ('inspector.css','text/css'), ('replay.json','application/json')]}
 for name in ('archivo-400.woff2', 'archivo-600.woff2', 'mark.svg'):
     ASSETS['assets/'+name] = (ROOT.parent/'site/assets'/name,
                              'image/svg+xml' if name.endswith('.svg') else 'font/woff2')
 
 
+PRIVATE_ASSETS = {}
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         name = self.path.split('?', 1)[0].removeprefix('/') or 'index.html'
-        if name not in ASSETS:
+        if name not in ASSETS and name not in PRIVATE_ASSETS:
             self.send_error(404)
             return
-        path, mime = ASSETS[name]
         try:
-            body = path.read_bytes()
+            if name in PRIVATE_ASSETS:
+                body, mime = PRIVATE_ASSETS[name]
+            else:
+                path, mime = ASSETS[name]
+                body = path.read_bytes()
         except OSError:
             self.send_error(404)
             return
@@ -30,7 +37,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy', "default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(body)
 
@@ -41,7 +48,11 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=4174)
+    parser.add_argument('--evidence-bundle', type=Path, help='Explicit private OCR bundle; verified before serving')
     args = parser.parse_args()
+    if args.evidence_bundle:
+        from inspector_assets import load_bundle
+        PRIVATE_ASSETS.update(load_bundle(args.evidence_bundle))
     with ThreadingHTTPServer(('127.0.0.1', args.port), Handler) as server:
         print(f'Replay: http://127.0.0.1:{server.server_port}', flush=True)
         server.serve_forever()

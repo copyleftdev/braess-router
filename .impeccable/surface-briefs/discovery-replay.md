@@ -139,3 +139,56 @@ budget admission, not end-to-end live review quality. Its static download is not
 the completed public live export, and its measured client events remain
 distinct from the returned gateway traces. The captured local replay is not evidence of
 legal-review accuracy or deployment.
+
+## Private source inspector extension — 2026-09-21
+
+The optional **Back to the source** section follows the replay with a fine rule,
+preserving its code-led monochrome Archivo world. A scan occupies the left side
+of a 1.65:1 desktop grid; recognized text and provenance occupy the right. Below
+800px they stack with the scan first. Square controls select the page, fit-width
+or source-size view, OCR word and visible word outline. The pale transcript marks
+the same word, while source-pixel coordinates and extraction confidence remain
+explicit. The outline denotes an OCR location, not a reviewer finding or a
+redaction. These are local extension decisions; `DESIGN.md` and its sidecar
+remain unchanged.
+
+The actual private corpus sample has two pages and 581 located words. It is
+explicitly separate from the synthetic routing replay; no recorded live model
+review yet associates this source with a replay task. The optional
+`--evidence-bundle` server argument loads a verified, explicit asset set into
+memory on loopback. The browser rechecks asset hashes and decoded dimensions
+before displaying content. Without a bundle the section remains hidden;
+verification failure shows an explicit error. Source-size rendering and the SVG
+viewBox preserve source-page pixel coordinates. Browser text slicing uses Unicode
+code points to match Python offsets.
+
+Evidence checked for this documentation pass:
+
+- Source: `demo/web/index.html`, `inspector.js`, `inspector.css`,
+  `demo/serve.py`, `demo/inspector_assets.py`, `demo/test_inspector.cjs`, and
+  `demo/MEDIA.md`; product and incumbent design authority were also read.
+- Review captures: [desktop full page](../review/inspector-desktop.png) and
+  [mobile full page](../review/inspector-mobile.png), with intentional viewport
+  details [desktop](../review/inspector-detail-desktop.png) and
+  [mobile](../review/inspector-detail-mobile.png). The documenter visually
+  inspected the two detail captures; the finish reviewer inspected source and
+  captures. These private source-bearing PNGs remain ignored review artifacts.
+- [Recorded browser results](../review/inspector-browser.json) pass desktop and
+  mobile controls with two pages, no page errors or horizontal overflow, plus
+  corrupt-bundle and missing-bundle states. The test source checks exact SVG
+  rectangle coordinates against the OCR box. The additional passing
+  `synthetic_unicode_offsets` variant checks emoji and accented text spans; it
+  is a synthetic behavior check, not a new corpus observation. These are
+  supplied browser execution results, not an independent documenter rerun.
+- The implementation owner reports three passing asset-loader tests and nine
+  passing bundle/OCR tests, and prior verification of exporter source pixels.
+  `demo/MEDIA.md` records source, mapping, text and page hash provenance and
+  source-coordinate export behavior. This pass did not rerun those tests.
+
+Fresh finish disposition: **SHIP this UI slice; no material fixes required**.
+The reviewer reviewed source and screenshots without an independent browser run;
+the implementation owner reports no UI changes since those captures. This
+documentation completes the bounded inspector extension. The viewer performs
+no model/API calls and publishes nothing. Transcription accuracy, semantic
+review, a recorded live-review association, reviewed public excerpts and the
+larger dogfood goal remain outside this completed slice.

@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#080808"><meta name="robots" content="noindex">
 <title>Recorded decisions — Braess Router</title>
 <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css"><script src="app.js" defer></script>
+<link rel="stylesheet" href="style.css"><script src="app.js" defer></script><link rel="stylesheet" href="inspector.css"><script src="inspector.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#controls">Skip to replay controls</a>
@@ -44,6 +44,14 @@
     <details><summary>Provenance</summary><p id="provenance"></p></details>
   </aside>
 </section>
+<section id="source-inspector" hidden aria-labelledby="source-heading">
+<div class="source-heading"><h2 id="source-heading">Back to the source.</h2><p>Private OCR inspection. This document is separate from the synthetic routing replay above.</p></div>
+<p id="source-status" role="status">Verifying source assets…</p>
+<div id="source-content" hidden>
+<div class="source-controls"><label>Page <select id="source-page" aria-label="Source page"></select></label><label>View <select id="source-zoom"><option value="fit">Fit width</option><option value="native">Source size</option></select></label><button id="source-overlay" aria-pressed="true">Show word location</button><span id="source-dimensions"></span></div>
+<div class="source-grid"><div class="source-viewport" tabindex="0" aria-label="Source image; scroll to inspect at source size"><div id="source-sheet"><span id="source-image-slot"></span><svg id="source-boxes" aria-hidden="true"><rect id="source-box"/></svg></div></div>
+<aside class="source-reading"><h3>Recognized text</h3><p>Choose an OCR word to locate it on the page. These locations are extraction evidence, not reviewer findings.</p><label for="source-word">Word on this page</label><select id="source-word"></select><p id="source-word-detail"></p><div id="source-transcript" tabindex="0" aria-label="Page transcript"></div><details><summary>Source provenance</summary><dl id="source-provenance"></dl></details></aside></div>
+</div></section>
 <footer><span>Replay, not live inference.</span><a href="replay.json" download>Download recorded events <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 16h12"/></svg></a></footer>
 </main><noscript><p class="noscript">Enable JavaScript to explore the replay, or <a href="replay.json">read the recorded events</a>.</p></noscript>
 </body></html>
