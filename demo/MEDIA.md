@@ -87,17 +87,45 @@ its extraction uncertainty. The fleet records the original modality as `image`;
 the reviewer currently receives OCR text, not pixels. This does not establish
 vision-model support or OCR transcription accuracy.
 
+## Media preparation metadata
+
+```sh
+python3 demo/media_plan.py NATIVE_DIRECTORY/inventory.json \
+  NATIVE_DIRECTORY/image-probe.json NATIVE_DIRECTORY/media-plan-NEW.json
+```
+
+This offline planner rehashes each bounded native object, reproduces its signature
+classification, and checks that the image decoder receipt names the exact
+inventory hash and source/native-ID pair. It retains each archive member,
+including duplicate content and tiny images. A decoder receipt is a recorded
+local observation, not an independently authenticated claim or a fresh decode.
+
+The private report records source bytes and hashes, decoder metadata, preparation
+stage and reason, input and planner hashes, and incomplete-archive scope. The
+actual prefix yields 519 `prepare_text_review`, 13 `prepare_ocr`, 717
+`needs_decoder`, and 110 `inspect_unknown` members. Decoder failures use
+`inspect_failure`; missing, conflicting, or unmatched receipts fail the plan.
+These stages neither prepare requests nor dispatch work. Semantic route remains
+null and dispatch remains disabled. Jev decisions belong to the later recorded
+review, after input preparation and handler-capability validation.
+
+No direct vision or audio handler is marked verified. File signatures cannot
+prove an audio stream is decodable or a container has no embedded media. The
+planner does not drop 1×1 images or classify their relevance. Reports stay private
+and provide metadata for a future media-preparation visualization.
+
 ## Integration still needed
 
 The native prefix begins in a different part of the archive from the existing
 40-document text sample. Join by verified native/text IDs before showing family
 context; do not imply these are the same reviewed documents. Image-region
 coordinates are available in the optional private inspector described below;
-linking a source page to a recorded review task still needs a verified association.
+linking a source page to a recorded review task uses the verified association
+described below.
 
 Next stages are native/text joins, OCR/vision task routing, a tested image-capable
-provider handler, recorded review-to-source links and approved public excerpts.
-The current web replay contains no native images or real Enron text. Audio and
+provider handler, live review-to-source links and approved public excerpts.
+The public web replay contains no native images or real Enron text. Audio and
 video workers remain planned, contingent on actual corpus media or a separately
 identified supplemental dataset.
 
@@ -152,9 +180,10 @@ showing content. A corrupt bundle produces an explicit error; without the
 optional argument, the source-inspection section stays hidden. The private view
 makes no provider calls and is not included in the GitHub Pages site.
 
-The real document is explicitly separate from the synthetic routing replay.
-Connecting a source to a task requires a matching recorded live review; the
-inspector does not invent that association. Public exports still require their
+Standalone inspection does not associate the real document with a replay task.
+Connecting a source to a task requires a verified recorded review association;
+the local OCR fixture demonstrates this with explicitly scripted providers.
+The inspector does not invent that association. Public exports still require their
 own reviewed source selection. Screenshots containing source pages remain in the
 ignored `.impeccable/review` directory.
 
