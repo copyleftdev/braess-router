@@ -165,3 +165,8 @@ it checks desktop/mobile controls, overflow, fonts, unavailable/private paths,
 missing-bundle behavior and rejection of a changed word asset. Asset loader
 unit tests cover hash tampering, immutable served bytes, path names, symlinks,
 incomplete bundles and geometry bounds.
+
+Recorded reviews can now be checked against their source and inspector bundle
+using [the review association verifier](REVIEW_LINK.md). It revalidates the
+captured answer and reproduces inspector assets from the native source. UI
+consumption and actual live review associations remain pending.
