@@ -169,7 +169,7 @@ costs. A future film export must use the same event-driven renderer as playback.
   reservations and observer dispatch gating are implemented and tested.
 - Join sampled native media to text IDs and implement vision review. A bounded
   native inventory, local OCR and source-linked OCR findings are implemented.
-- Run the prepared real corpus under a discovery-specific semantic rubric and
+- Run the prepared real corpus under the [provisional discovery rubric](DISCOVERY_POLICY.md) and
   verified provider pricing; [text findings and draft redaction contracts](REVIEW.md)
   are now connected to the bounded runner.
   Native image redaction and audio coordinates still need separate implementation.

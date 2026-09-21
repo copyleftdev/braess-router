@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.6
+
+- Return validated routing scores, policy thresholds and partial timing traces on gateway execution responses.
+- Add a provisional discovery review rubric with standard, deep and local fallback routes.
+- Add a repository demo with bounded review execution, source-linked OCR findings, recorded metadata and a monochrome replay/film draft.
+- Keep synthetic fixture evidence separate from live semantic quality, complete billing and publication approval.
+
 ## 0.1.0-alpha.5
 
 - Add a text-only OpenRouter generation adapter with explicit route/model/provider mappings.

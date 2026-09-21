@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from export_replay import export, FLEET_TASKS
+from export_replay import export, FLEET_TASKS, DISCOVERY_TASKS
 from recording import Recorder
 
 
@@ -40,6 +40,28 @@ class ExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);source=self.bundle(root)
             with self.assertRaises(ValueError):export(source,root/'public.json')
+
+    def test_discovery_fixture_identity_requires_discovery_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);recorder=Recorder(root/'recording',scope='synthetic',metadata={})
+            task=list(DISCOVERY_TASKS)[-1];document=DISCOVERY_TASKS[task]
+            recorder.append('task_queued',task,document_id=document,family_id=document,modality='text')
+            recorder.append('task_deferred',task,reason='budget_admission_refused');recorder.close()
+            with self.assertRaises(ValueError):export(root/'recording',root/'wrong.json',profile='fleet')
+            export(root/'recording',root/'public.json',profile='discovery')
+            self.assertEqual(json.loads((root/'public.json').read_bytes())['summary']['deferred'],1)
+
+    def test_discovery_model_labels_remain_allowlisted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);recorder=Recorder(root/'recording',scope='synthetic',metadata={})
+            task=next(iter(DISCOVERY_TASKS));document=DISCOVERY_TASKS[task]
+            recorder.append('task_queued',task,document_id=document,family_id=document,modality='text')
+            recorder.append('request_started',task,input_sha256='a'*64)
+            recorder.append('response_received',task,http_status=200,response_sha256='b'*64,elapsed_ms=1,
+                            route='review_standard',generation_model='private-provider-label')
+            recorder.append('task_uncertain',task,error='review_validation_failed');recorder.close()
+            with self.assertRaises(ValueError):export(root/'recording',root/'public.json',profile='discovery')
+            self.assertFalse((root/'public.json').exists())
 
 
 if __name__=='__main__':unittest.main()

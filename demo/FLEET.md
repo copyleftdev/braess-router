@@ -33,7 +33,10 @@ Jev and generation fixtures. Three authored documents exercise one valid review,
 one fabricated quote and one budget deferral. It asserts exactly two generation
 requests and writes the results and executable hashes. No paid requests occur.
 This test is now included in CI. The fixture uses the existing capability rubric;
-it does not validate a discovery-specific semantic policy or real model accuracy.
+it does not validate real model accuracy. The additional `--discovery` mode uses
+the [discovery rubric](DISCOVERY_POLICY.md), distinct configured standard/deep
+models, and four tasks including local fallback. Its Jev choices are scripted;
+it validates policy transport and dispatch, not semantic classification quality.
 
 ## Run prepared tasks
 

@@ -52,6 +52,10 @@ jobs:
         run: python3 demo/fleet_smoke.py artifacts/discovery-fleet --binary target/release/braess-router
       - name: Verify fleet replay export
         run: python3 demo/export_replay.py artifacts/discovery-fleet/run/recording artifacts/discovery-fleet/replay.json --profile fleet
+      - name: Discovery policy integration
+        run: python3 demo/fleet_smoke.py artifacts/discovery-policy --binary target/release/braess-router --discovery
+      - name: Verify discovery policy export
+        run: python3 demo/export_replay.py artifacts/discovery-policy/run/recording artifacts/discovery-policy/replay.json --profile discovery
       - run: cargo package --locked
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -62,6 +66,7 @@ jobs:
             artifacts/evidence.json
             artifacts/discovery-demo
             artifacts/discovery-fleet
+            artifacts/discovery-policy
           retention-days: 14
           include-hidden-files: true
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

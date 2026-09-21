@@ -22,11 +22,27 @@ FLEET_LABELS = {
     'generation_id': {'gen-fixture-1', 'gen-fixture-2'},
     'outcome': {'review_validated'}, 'error': {'review_validation_failed'},
 }
+DISCOVERY_TASKS = {
+    'c3104590315a704833fbf064b2b714e4c5f4569ad43b5376f97ae575ef17a182': '3.0.A',
+    '1bead4dd940b5702a0b1a79d4a495ab658a50886eaa765c44e1ebee1c934266c': '3.1.A',
+    '0e955e3d45168904192400337af75ab92583f4963fd59a696debb4191d3d3fa9': '3.2.A',
+    '6b4da7175c0e6dfdc5cefaadee39450f1e6ff1c6a9b584122f904ab28f0c6c58': '3.3.A',
+}
+DISCOVERY_LABELS = {**FLEET_LABELS,
+    'route': {'review_standard','review_deep','fallback'},
+    'reason': {'accepted','model_fallback','budget_admission_refused'},
+    'policy_version': {'discovery-review-v1'},
+    'generation_model': {'fixture/reviewer-standard','fixture/reviewer-deep'},
+    'requested_model': {'fixture/reviewer-standard','fixture/reviewer-deep'},
+    'outcome': {'review_validated','fallback'},
+}
 
 
-def check_fleet(data):
+def check_fleet(data, *, discovery=False):
     # This is an explicit publication profile for the three public-code fixtures,
     # not authorization to publish arbitrary runs labeled synthetic.
+    tasks = DISCOVERY_TASKS if discovery else FLEET_TASKS
+    labels = DISCOVERY_LABELS if discovery else FLEET_LABELS
     run = data['run']
     if (set(run) != {'schema_version','run_id','scope','created_at','observation_scope','provenance'} or
             run['observation_scope'] != 'gateway client boundary' or
@@ -38,23 +54,23 @@ def check_fleet(data):
     for event in data['events']:
         if datetime.fromisoformat(event['at']).isoformat() != event['at']:
             raise ValueError('invalid event timestamp')
-        if event['task_id'] not in FLEET_TASKS:
+        if event['task_id'] not in tasks:
             raise ValueError('unexpected fleet task')
         for key, value in event['data'].items():
             if key == 'routing_trace':
                 decision = value['decision']
-                if decision and set(decision['probabilities']) != {'general','coding','reasoning','fallback'}:
+                if decision and set(decision['probabilities']) != labels['route']:
                     raise ValueError('unapproved decision catalog')
             if not isinstance(value, str):
                 continue  # recording.verify already validates numeric fields.
             if key in ('document_id', 'family_id'):
-                valid = value == FLEET_TASKS[event['task_id']]
+                valid = value == tasks[event['task_id']]
             elif key.endswith('_sha256') or key == 'budget_attempt_id':
                 valid = re.fullmatch('[0-9a-f]{64}', value)
             elif key in ('generation_cost_usd', 'budget_reserved_usd'):
                 valid = re.fullmatch(r'[0-9]+(?:\.[0-9]+)?', value)
             else:
-                valid = value in FLEET_LABELS.get(key, set())
+                valid = value in labels.get(key, set())
             if not valid:
                 raise ValueError('unapproved fleet metadata')
 
@@ -63,10 +79,10 @@ def export(source, destination, *, profile='gateway'):
     data = verify(source)
     if data['run']['scope'] != 'synthetic':
         raise ValueError('live public export requires content review; not implemented')
-    if profile not in ('gateway', 'fleet'):
+    if profile not in ('gateway', 'fleet', 'discovery'):
         raise ValueError('unknown publication profile')
-    if profile == 'fleet':
-        check_fleet(data)
+    if profile in ('fleet','discovery'):
+        check_fleet(data,discovery=profile=='discovery')
     data['presentation'] = {'profile': profile, 'title': 'Gateway observation study',
                             'description': 'Real Braess execution with synthetic Jev and handlers. No legal corpus or real model inference.',
                             'timing': 'Measured client events; spatial paths are illustrative.',
@@ -79,10 +95,14 @@ def export(source, destination, *, profile='gateway'):
         for key in ('document_id', 'family_id'):
             if key in event['data'] and event['data'][key] not in {f'fixture-{i}' for i in range(6)}:
                 raise ValueError('unexpected source identifier')
-    if profile == 'fleet':
+    if profile in ('fleet','discovery'):
         data['presentation'].update(title='Review fleet observation study',
             description='Real Braess and adapter execution with synthetic Jev and reviewer responses. Source-span validation and budget gating ran locally; no legal corpus or paid inference.',
             approval='allowlisted fleet fixture metadata only')
+    if profile == 'discovery':
+        data['presentation'].update(title='Discovery policy transport study',
+            description='Real Braess and adapter execution with scripted standard, deep and fallback decisions. Synthetic reviewer responses exercise validation and budget gating; this does not evaluate Jev semantic accuracy.',
+            approval='allowlisted discovery fixture metadata only')
     if any('routing_trace' in event['data'] for event in data['events']):
         data['presentation']['internal_decision_timing'] = 'gateway monotonic boundaries; only present traces observed'
     Path(destination).write_bytes(canonical(data) + b'\n')
@@ -92,6 +112,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
     parser.add_argument('destination', type=Path)
-    parser.add_argument('--profile', choices=['gateway', 'fleet'], default='gateway')
+    parser.add_argument('--profile', choices=['gateway', 'fleet','discovery'], default='gateway')
     args = parser.parse_args()
     export(args.source, args.destination, profile=args.profile)
