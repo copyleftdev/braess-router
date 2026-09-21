@@ -63,7 +63,9 @@ A bounded prefix of the official native archive now has a signature inventory.
 Thirteen image candidates decoded, including three multipage TIFFs; one two-page
 TIFF has local OCR with source-linked word coordinates. Validated OCR findings
 now carry the original image hash, page and pixel boxes. [Measured coverage,
-reproduction and limits](MEDIA.md). This is local extraction, not semantic review.
+reproduction and limits](MEDIA.md). This is local extraction, not semantic review. The [image transport experiment](VISION.md)
+now also sends both scan pages through the local gateway and image handler with
+scripted providers, recording exact request and page hashes.
 
 ## Execute validated reviewer tasks
 

@@ -48,7 +48,7 @@ def prepare(bundle, output, *, prompt, model, provider, pages):
     output = Path(output); output.mkdir(mode=0o700, parents=True, exist_ok=False)
     private_write(output/'reference.json', ref+b'\n')
     private_write(output/'provider-request.json', wire)
-    report = {'schema_version': 1, 'scope': 'offline request-shape experiment; not executable by current text adapter',
+    report = {'schema_version': 1, 'scope': 'offline request-shape experiment; requires a provisioned vision-reference route',
               'document_id': manifest['document_id'], 'pages': references,
               'inspector_manifest_sha256': reference['inspector_manifest_sha256'],
               'reference_sha256': hashlib.sha256(ref+b'\n').hexdigest(),

@@ -58,3 +58,38 @@ page-region observations require a separate validated coordinate contract.
 The preparation experiment itself does not dispatch, calibrate route quality, approve
 publication, establish OCR accuracy or perform native redaction. Audio needs a
 real or explicitly labeled supplemental sample and its own capability contract.
+
+## Real scan transport replay, with synthetic providers
+
+The integration experiment accepts an explicit private inspector bundle. It
+verifies the bundle assets, copies its page PNGs into a private experiment
+registry, and sends all pages (one to eight, at most 8 MiB total) through the
+actual local gateway and adapter. Jev and reviewer responses remain scripted.
+
+```sh
+python3 scripts/openrouter_e2e.py artifacts/NEW_SCAN_TRANSPORT \
+  --binary /absolute/path/to/braess-openrouter \
+  --inspector artifacts/ocr-review-replay-v1/inspector
+```
+
+The gateway binary must be beside the adapter binary. The command makes no live
+provider calls. It checks exact ordered PNG round trips, invalid-reference
+rejection before generation admission, immutable startup bytes, restart refusal
+on source alteration, durable receipts, and receipt retention in the sealed
+observer recording and route analysis. Alteration tests affect only the copied
+experiment registry; the original inspector stays unchanged.
+
+The two-page Enron scan passed this path locally: 285,299 source PNG bytes became
+an actual 380,822-byte provider request. The fixture records the received request's
+byte count and SHA-256 before JSON parsing. `result.json` records ordered page
+hashes, dimensions, byte lengths, manifest hash and request hash. The private
+`events.json` includes the full synthetic-provider request, including source
+image data; it is not a public telemetry export. `vision-recording` and
+`vision-metrics.json` retain the request-bound image receipt without that payload.
+These measurements differ from the earlier preparation specimen because the
+prompt and model configuration differ.
+
+This is transport evidence on real source pixels, not a semantic evaluation.
+The local Jev fixture chooses a scripted route; no model has interpreted these
+scans in this experiment. Live capability, quality, pricing and content approval
+remain separate gates.

@@ -35,16 +35,19 @@ def request(url, value=None):
         return {'status': response.status, 'body': json.loads(response.read())}
 
 
-def run(output, binary):
-    output.mkdir(parents=True, exist_ok=False)
+def run(output, binary, *, inspector=None):
+    output.mkdir(mode=0o700, parents=True, exist_ok=False)
     records, events, processes = [], [], []
     began, release = threading.Event(), threading.Event()
     class Fixture(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
         def do_POST(self):
-            body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-            events.append({'path': self.path, 'body': body, 'authorization_present': 'Authorization' in self.headers})
+            raw_body = self.rfile.read(int(self.headers['Content-Length']))
+            body = json.loads(raw_body)
+            events.append({'path': self.path, 'body': body, 'request_bytes':len(raw_body),
+                           'request_sha256':hashlib.sha256(raw_body).hexdigest(),
+                           'authorization_present': 'Authorization' in self.headers})
             text = body['messages'][0]['content']
             result = {'id': 'gen-fixture', 'object': 'chat.completion', 'model': body['model'], 'provider': 'Fixture',
                       'choices': [{'index': 0, 'finish_reason': 'stop', 'message': {'role': 'assistant', 'content': 'synthetic answer'}}],
@@ -199,13 +202,33 @@ def run(output, binary):
             manifest = {'schema_version':1,'complete':True,'publication_approved':False,
                         'document_id':'fixture-image','native_source_sha256':image_hash,
                         'coordinate_unit':'source_page_pixels','pages':[{**page,'file':'page-1.png'}]}
-            raw = json.dumps(manifest).encode(); (bundle/'manifest.json').write_bytes(raw)
+            raw = json.dumps(manifest).encode()
+            images = [image]
+            pages = [page]
+            if inspector is not None:
+                sys.path.insert(0,str(gateway.ROOT/'demo'))
+                from inspector_assets import load_bundle
+                assets = load_bundle(inspector)
+                raw = assets['evidence/manifest.json'][0]
+                manifest = json.loads(raw)
+                if not 1 <= len(manifest['pages']) <= 8:
+                    raise ValueError('transport experiment requires one to eight pages')
+                images = [assets['evidence/'+item['file']][0] for item in manifest['pages']]
+                if sum(map(len,images)) > 8*1024*1024:
+                    raise ValueError('transport experiment image byte bound exceeded')
+                pages = [{k:item[k] for k in ('page','sha256','width','height')} | {'bytes':len(data)}
+                         for item,data in zip(manifest['pages'],images)]
+                for item,data in zip(manifest['pages'],images):
+                    (bundle/item['file']).write_bytes(data)
+                page, image = pages[0], images[0]
+                image_hash = page['sha256']
+            (bundle/'manifest.json').write_bytes(raw)
             manifest_hash = hashlib.sha256(raw).hexdigest()
             vc,vp = fresh('vision',vision={manifest_hash:str(bundle)})
             vision_process, vision_url = start(vp)
-            reference = {'schema_version':1,'kind':'vision_reference_v1','document_id':'fixture-image',
-                         'native_source_sha256':image_hash,'inspector_manifest_sha256':manifest_hash,
-                         'prompt':'Describe the fixture pixel.','pages':[page]}
+            reference = {'schema_version':1,'kind':'vision_reference_v1','document_id':manifest['document_id'],
+                         'native_source_sha256':manifest['native_source_sha256'],'inspector_manifest_sha256':manifest_hash,
+                         'prompt':'Describe the source pages. Synthetic transport experiment only.','pages':pages}
             before = len(events)
             for changed in [{**reference,'document_id':'other'}, {**reference,'pages':[page,page]},
                             {**reference,'inspector_manifest_sha256':'0'*64},
@@ -223,11 +246,13 @@ def run(output, binary):
             vision_response=request(vgurl+'/route',{'request':reference_wire})
             assert vision_response['status']==200 and vision_response['body']['route']=='general'
             evidence=vision_response['body']['handler_response']['execution']['input_evidence']
-            assert evidence=={'reference_sha256':hashlib.sha256(reference_wire.encode()).hexdigest(),'image_sha256':[image_hash]}
+            assert evidence=={'reference_sha256':hashlib.sha256(reference_wire.encode()).hexdigest(),'image_sha256':[item['sha256'] for item in pages]}
             parts=events[-1]['body']['messages'][0]['content']
             assert parts[0]=={'type':'text','text':reference['prompt']}
-            assert parts[1]['type']=='image_url'
-            assert base64.b64decode(parts[1]['image_url']['url'].split(',',1)[1],validate=True)==image
+            assert len(parts)==1+len(images)
+            for part,expected in zip(parts[1:],images):
+                assert part['type']=='image_url'
+                assert base64.b64decode(part['image_url']['url'].split(',',1)[1],validate=True)==expected
             # Capture another real local call through the demo observer contract.
             sys.path.insert(0,str(gateway.ROOT/'demo'))
             from recording import Recorder, verify
@@ -235,7 +260,7 @@ def run(output, binary):
             from run_metrics import metrics
             recording=Recorder(output/'vision-recording',scope='synthetic',metadata={})
             try:
-                recording.append('task_queued','vision-fixture',document_id='fixture-image',family_id='fixture-image',modality='image')
+                recording.append('task_queued','vision-fixture',document_id=manifest['document_id'],family_id=manifest['document_id'],modality='image')
                 observe(recording,'vision-fixture',vgurl+'/route',reference_wire)
             finally:
                 recording.close()
@@ -254,6 +279,12 @@ def run(output, binary):
             stop(restored)
             journal_text=Path(vc['journal_path']).read_text()
             assert image_hash in journal_text and reference['prompt'] not in journal_text and 'base64' not in journal_text
+            result['vision_source']={'kind':'verified private inspector' if inspector else 'synthetic one-pixel PNG',
+                                    'manifest_sha256':manifest_hash,'pages':pages,
+                                    'source_image_bytes':sum(map(len,images)),
+                                    'provider_request_bytes':events[-1]['request_bytes'],
+                                    'provider_request_sha256':events[-1]['request_sha256'],
+                                    'semantic_quality_evaluated':False,'publication_approved':False}
             result['vision_response']=vision_response
             result['vision_checks']=['invalid references refused before reservation','immutable source bytes',
                                      'gateway to multipart handler','exact PNG round trip','source hashes in durable receipt',
@@ -290,5 +321,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path)
     parser.add_argument('--binary', type=Path, required=True)
+    parser.add_argument('--inspector', type=Path, help='Private verified page bundle for local synthetic transport; no live calls')
     args = parser.parse_args()
-    run(args.output.resolve(), args.binary.resolve())
+    run(args.output.resolve(), args.binary.resolve(), inspector=args.inspector)
