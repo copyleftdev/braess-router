@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const names = {task_queued:'Queued',request_started:'Request sent',response_received:'Response received',review_validated:'Evidence validated',task_completed:'Completed',task_uncertain:'Uncertain',task_deferred:'Deferred'};
-  let bundle, tasks=[], lanes=[], selected, duration=1, clock=0, playing=false, lastFrame=0, raf=0, inspectedKey='';
+  let bundle, tasks=[], lanes=[], selected, duration=1, clock=0, playing=false, lastFrame=0, raf=0, inspectedKey='', reviewLinks=null, linksFailed=false;
   const canvas=$('flow'), ctx=canvas.getContext('2d');
   let width=1,height=1;
   const ms=n=>(n/1e6).toFixed(2)+' ms';
@@ -80,23 +80,62 @@
     const failure=events.find(e=>e.kind==='task_uncertain')?.data.error;
     $('selected-title').textContent=task.document;
     $('selected-state').textContent=names[s]||'Not started';
-    $('selected-description').textContent=s==='task_deferred'?'The budget gate refused admission before dispatch. No provider request was made for this task.':failure==='review_validation_failed'?'A reviewer result returned, but its evidence failed validation. No finding was accepted; this task remains uncertain.':s==='task_uncertain'?'Completion was not confirmed. This task is retained as uncertain.':validation?'The finding’s quote and coordinates matched the source. This verifies the evidence link, not legal correctness.':r?.route==='fallback'?'Braess returned a local fallback. No handler completion is implied.':s==='task_completed'?'The gateway returned a handler result. This fixture does not measure legal-review accuracy.':'Only events up to the replay clock are shown.';
+    $('selected-description').textContent=s==='task_deferred'?'The budget gate refused admission before dispatch. No provider request was made for this task.':failure==='review_validation_failed'?'A reviewer result returned, but its evidence failed validation. No finding was accepted; this task remains uncertain.':s==='task_uncertain'?'Completion was not confirmed. This task is retained as uncertain.':validation?'The finding’s quote and coordinates matched the source. This verifies the evidence link, not legal correctness.':r?.route==='fallback'?'Braess returned a local fallback. No handler completion is implied.':s==='task_completed'?'The gateway returned a handler result. A returned result does not establish legal-review accuracy.':'Only events up to the replay clock are shown.';
     const facts=[['Route',r?.route||'Not observed'],['Decision model',r?.decision_model||'Not reported'],['Policy',r?.policy_version||'Not reported'],['Handler index',r?.handler_index??'Not reported'],['Client duration',r?Number(r.elapsed_ms).toFixed(2)+' ms':'Not yet observed'],['Decision tokens',r?.decision_input_tokens!==undefined?r.decision_input_tokens+' in / '+(r.decision_output_tokens??'unknown')+' out':'Not reported'],['Generation model',r?.generation_model||'Not reported'],['Generation cost',r?.generation_cost_usd!==undefined?'$'+r.generation_cost_usd:'Not reported']];
     facts.push(['Source modality',events.find(e=>e.kind==='task_queued')?.data.modality||'Not observed'],
       ['Validated findings',validation?.finding_count??'None accepted yet'],
       ['Admission reservation',reservation?.budget_reserved_usd!==undefined?'$'+reservation.budget_reserved_usd+' (estimate)':'Not reserved'],
       ['Generation provider',r?.generation_provider||'Not reported'],
       ['Generation tokens',r?.generation_input_tokens!==undefined?r.generation_input_tokens+' in / '+(r.generation_output_tokens??'unknown')+' out':'Not reported'],
-      ['Cost scope','Synthetic receipt; total cost unknown']);
+      ['Cost scope',bundle.run.scope==='synthetic'?'Synthetic receipt; total cost unknown':'Partial receipts; total cost unknown']);
     $('facts').replaceChildren(...facts.flatMap(([k,v])=>[element('dt',k),element('dd',String(v))]));
     $('sequence').replaceChildren(...events.map(e=>{const li=element('li');li.append(element('span',names[e.kind]),element('time',ms(e.elapsed_ns)));return li;}));
     $('provenance').textContent='Run '+bundle.run.run_id+' · Source '+task.id+' · Last visible event SHA-256 '+(events.at(-1)?.sha256||'not observed')+(validation?' · Validated review SHA-256 '+validation.review_sha256:'')+(reservation?.budget_attempt_id?' · Budget attempt '+reservation.budget_attempt_id:'');
+    inspectFindings(task, events);
     inspectDecision(r?.routing_trace,s);
+  }
+  function inspectFindings(task, events){
+    const panel=$('linked-findings'), list=$('finding-list');list.replaceChildren();
+    panel.hidden=!reviewLinks&&!linksFailed;
+    if(panel.hidden)return;
+    if(linksFailed){$('findings-status').textContent='Finding associations could not be verified. Restart the private viewer with matching run inputs.';return;}
+    const association=reviewLinks.links.find(item=>item.task_id===task.id);
+    const event=events.find(e=>e.kind==='review_validated');
+    if(!association||!event){$('findings-status').textContent=association?'Findings become available at the recorded validation event.':'No verified finding association for this task.';return;}
+    $('findings-status').textContent='Exact source spans verified. These are provisional reviewer findings, not approved redactions or established legal conclusions.';
+    if(!association.review.findings.length){$('findings-status').textContent='The validated report contains no findings. This does not establish that nothing relevant was missed.';return;}
+    for(const finding of association.review.findings){
+      const article=element('article',undefined,'linked-finding');
+      const label=finding.kind.replaceAll('_',' ');
+      article.append(element('h4',label[0].toUpperCase()+label.slice(1)),element('blockquote',finding.quote),element('p',finding.note));
+      const regions=finding.location.image_regions||[];
+      article.append(element('p','Source characters '+finding.start+'–'+finding.end+(regions.length?' · page '+[...new Set(regions.map(r=>r.page))].join(', '):''),'finding-location'));
+      list.append(article);
+    }
+  }
+  async function loadLinks(){
+    if(bundle.presentation.profile!=='private_review')return;
+    try{
+      const response=await fetch('review-links.json');if(!response.ok)throw Error('Missing links');
+      const text=await response.text();if(text.length>16*1024*1024)throw Error('Links too large');
+      const data=JSON.parse(text);
+      if(data.schema_version!==1||data.run_id!==bundle.run.run_id||data.scope!==bundle.run.scope||data.publication_approved!==false||!Array.isArray(data.links)||data.links.length>200)throw Error('Wrong run');
+      const ids=new Set();
+      for(const item of data.links){
+        const task=tasks.find(t=>t.id===item.task_id),event=task?.events.find(e=>e.kind==='review_validated');
+        if(!task||ids.has(item.task_id)||item.run_id!==data.run_id||item.scope!==data.scope||item.document_id!==task.document||item.publication_approved!==false||item.association!=='verified_local_artifact_chain'||!event||item.review_sha256!==event.data.review_sha256||item.finding_visibility_after_elapsed_ns!==event.elapsed_ns||!Array.isArray(item.review?.findings)||item.review.findings.length!==event.data.finding_count||item.review.findings.length>64)throw Error('Wrong association');
+        ids.add(item.task_id);
+        for(const f of item.review.findings){if(typeof f.quote!=='string'||typeof f.note!=='string'||!['issue_highlight','privacy_candidate','privilege_candidate'].includes(f.kind)||!Number.isSafeInteger(f.start)||!Number.isSafeInteger(f.end)||f.start<0||f.end<=f.start||!f.location)throw Error('Invalid finding');}
+      }
+      reviewLinks=data;
+    }catch(_){linksFailed=true;}
+    inspectedKey='';render();
   }
   function inspectDecision(trace,s){
     const decision=trace?.decision, pct=value=>(value*100).toFixed(1)+'%';
     $('route-scores').replaceChildren();$('gate-scores').replaceChildren();$('stage-times').replaceChildren();
     $('score-note').hidden=!decision;
+    $('score-note').textContent=bundle.run.scope==='synthetic'?'Scores come from the synthetic Jev fixture. They do not measure legal accuracy.':'Recorded Jev scores describe the routing decision. They do not measure legal accuracy.';
     $('decision-summary').textContent=decision
       ?'Model choice: '+decision.choice+'. Gate result: '+decision.route+' ('+decision.reason+').'
       :s==='task_deferred'?'Admission stopped this task before a routing decision.'
@@ -105,7 +144,7 @@
     if(decision){
       const sorted=Object.entries(decision.probabilities).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
       for(const [name,value] of sorted){
-        const row=element('div',undefined,'score-row'),label=element('span',name),track=element('span',undefined,'score-track'),bar=element('span',undefined,'score-fill');
+        const row=element('div',undefined,'score-row'),label=element('span',name.replaceAll('_',' ')),track=element('span',undefined,'score-track'),bar=element('span',undefined,'score-fill');
         row.dataset.choice=String(name===decision.choice);bar.style.width=(value*100)+'%';track.setAttribute('aria-hidden','true');track.append(bar);
         row.append(label,track,element('span',pct(value),'score-value'));$('route-scores').append(row);
       }
@@ -140,7 +179,7 @@
     if(entries.length<2||entries.length>33||entries.some(([k,n])=>!(/^[a-z][a-z0-9_-]{0,63}$/).test(k)||!score(n))||!Object.hasOwn(d.probabilities,d.choice)||!Object.hasOwn(d.probabilities,d.route)||typeof d.reason!=='string'||d.reason.length>64||['confidence','supported','min_confidence','min_probability','min_supported'].some(k=>!score(d[k])))throw Error('Invalid decision scores');
   }
   function check(data){
-    if(data?.run?.schema_version!==1||data.run.scope!=='synthetic'||data.sealed!==true||!Array.isArray(data.events)||!data.events.length||data.events.length>100000)throw Error('Unsupported recording');
+    if(data?.run?.schema_version!==1||(!['synthetic','live'].includes(data.run.scope)||(data.run.scope==='live'&&data.presentation?.profile!=='private_review'))||data.sealed!==true||!Array.isArray(data.events)||!data.events.length||data.events.length>100000)throw Error('Unsupported recording');
     let last=-1;const ids=new Set();
     data.events.forEach((e,i)=>{if(!names[e.kind]||e.seq!==i+1||!Number.isSafeInteger(e.elapsed_ns)||e.elapsed_ns<last||typeof e.task_id!=='string'||!e.data||typeof e.data!=='object')throw Error('Invalid event sequence');last=e.elapsed_ns;ids.add(e.task_id);});
     data.events.filter(e=>e.data.routing_trace!==undefined).forEach(e=>checkTrace(e.data.routing_trace));
@@ -155,15 +194,15 @@
       for(const e of bundle.events){let task=tasks.find(t=>t.id===e.task_id);if(!task){task={id:e.task_id,document:e.data.document_id||e.task_id,events:[]};tasks.push(task);}task.events.push(e);}
       lanes=[...new Set(bundle.events.filter(e=>e.kind==='response_received'&&e.data.route).map(e=>e.data.route))];
       if(bundle.events.some(e=>e.kind==='task_uncertain'))lanes.push('uncertain');
-      $('lanes').replaceChildren(...lanes.map((name,i)=>{const label=element('div',name==='uncertain'?'Uncertain':name[0].toUpperCase()+name.slice(1),'lane');label.style.top=(12+i*76/Math.max(1,lanes.length-1))+'%';label.append(element('span',name==='uncertain'?'Not confirmed':name==='fallback'?'Local response':'Returned route'));return label;}));
+      $('lanes').replaceChildren(...lanes.map((name,i)=>{const label=element('div',name==='uncertain'?'Uncertain':name[0].toUpperCase()+name.slice(1).replaceAll('_',' '),'lane');label.style.top=(12+i*76/Math.max(1,lanes.length-1))+'%';label.append(element('span',name==='uncertain'?'Not confirmed':name==='fallback'?'Local response':'Returned route'));return label;}));
       for(const task of tasks){const button=element('button',undefined,'task-row');button.type='button';button.append(element('span',undefined,'signal'));const label=element('span',task.document);label.append(element('small',''));button.append(label,element('span','—','row-time'));button.addEventListener('click',()=>{selected=task.id;render();});task.button=button;$('tasks').append(button);}
       selected=tasks[0].id;
-      $('scope').textContent=bundle.presentation.description;$('scope-label').textContent='Recorded execution / synthetic providers';
+      $('scope').textContent=bundle.presentation.description;$('scope-label').textContent=bundle.run.scope==='synthetic'?'Recorded execution / synthetic providers':'Private recording / live providers';
       $('run-id').textContent=bundle.run.run_id.slice(0,8)+' · '+new Date(bundle.run.created_at).toISOString().slice(0,10);
-      $('task-total').textContent=tasks.length+' recorded fixtures';
+      $('task-total').textContent=tasks.length+(bundle.presentation.profile==='private_review'?' recorded tasks':' recorded fixtures');
       $('status').textContent='Paused at the end of the run. Play or scrub to inspect the observed sequence.';
       for(const id of ['play','reset','seek'])$(id).disabled=false;
-      $('play').setAttribute('aria-pressed','false');render();resize();
+      $('play').setAttribute('aria-pressed','false');render();resize();loadLinks();
     }catch(error){$('scope-label').textContent='Recording unavailable';$('scope').textContent='The recording could not be loaded.';$('status').textContent='Unable to load a supported recording. Restore replay.json from the verified exporter and reload.';}
   }
   $('play').addEventListener('click',()=>setPlaying(!playing));

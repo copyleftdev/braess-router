@@ -192,3 +192,47 @@ documentation completes the bounded inspector extension. The viewer performs
 no model/API calls and publishes nothing. Transcription accuracy, semantic
 review, a recorded live-review association, reviewed public excerpts and the
 larger dogfood goal remain outside this completed slice.
+
+## Private replay with linked findings — 2026-09-21
+
+This narrow, code-led extension places **Source-linked findings** inside the
+existing pale inspector, between task facts and the observed event sequence.
+Fine rules retain the incumbent flat Archivo composition. Quotes use 22px type,
+reviewer notes 14px, and source character ranges and optional page numbers 12px.
+The section follows task selection and the recorded validation time: scrubbing
+earlier removes the findings. Rejected, fallback and deferred tasks expose no
+accepted association. These are local surface measurements; `DESIGN.md` and its
+sidecar remain unchanged.
+
+The private loopback server verifies the supplied corpus, prepared tasks and
+sealed run before serving replay and finding associations from memory. The
+browser checks run/task identity, review hash and validation timestamp before
+showing findings; mismatches expose a recovery message. Source-span verification
+does not establish semantic or legal correctness or publication approval.
+
+Evidence checked for this documentation pass:
+
+- Source: `demo/web/app.js`, `index.html`, `style.css`, `demo/private_replay.py`,
+  `demo/serve.py`, and `demo/REVIEW_LINK.md`, alongside product and design authority.
+- Both [desktop](../review/linked-desktop.png) and
+  [mobile](../review/linked-mobile.png) captures were visually inspected. They
+  show the saved synthetic-provider `discovery-policy-v2` replay: four tasks,
+  15 events, one validated review, one fallback completion, one uncertain task
+  and one deferred task. The selected task exposes one provisional finding.
+- [Recorded browser results](../review/linked-browser.json) pass desktop/mobile
+  clock gating and task selection with no page errors or horizontal overflow.
+  Run, task, review-hash and timestamp mismatch variants pass. The `live_copy`
+  variant is an intercepted UI fixture, not a live provider execution. These
+  results were read, not independently rerun by the documenter.
+- The implementation owner reports three passing private-server tests. This
+  documentation pass did not rerun those tests or the generic default-viewer
+  regression suite.
+
+Fresh reviewer disposition: **SHIP this UI slice; no material fixes required**.
+The reviewer inspected both captures and implementation without an independent
+browser run. This update completes the bounded linked-findings documentation;
+it preserves the incumbent visual world without a design-system refresh.
+No provider calls or publication were performed for this extension. The default
+public exporter remains unchanged. The independently loaded actual OCR source
+remains separate, automatic finding-to-page navigation is pending, and live
+corpus review and the broader dogfood goal remain unfinished.

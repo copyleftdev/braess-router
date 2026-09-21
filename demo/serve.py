@@ -49,7 +49,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=4174)
     parser.add_argument('--evidence-bundle', type=Path, help='Explicit private OCR bundle; verified before serving')
+    for name in ('review-corpus','review-tasks','review-run'):
+        parser.add_argument('--'+name,type=Path)
     args = parser.parse_args()
+    review_args=(args.review_corpus,args.review_tasks,args.review_run)
+    if any(review_args):
+        if not all(review_args):parser.error('review-corpus, review-tasks and review-run are required together')
+        from private_replay import assets
+        PRIVATE_ASSETS.update(assets(*review_args))
     if args.evidence_bundle:
         from inspector_assets import load_bundle
         PRIVATE_ASSETS.update(load_bundle(args.evidence_bundle))

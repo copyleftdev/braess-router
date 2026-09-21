@@ -19,3 +19,6 @@
 .timing-row{margin-top:20px}.timing-label{display:flex;justify-content:space-between;gap:16px;font-size:12px}.timing-label>span:last-child{font-variant-numeric:tabular-nums;color:var(--muted)}
 .timing-track{height:8px;background:#262626;position:relative;margin-top:10px}.timing-fill{position:absolute;height:100%;background:#b7b7b7}.timing-row:first-child .timing-fill{background:var(--ink)}
 @media(max-width:600px){.score-row{gap:12px;grid-template-columns:80px 1fr 45px}#gate-scores{gap:10px 12px}.decision-study{margin-top:32px}}
+#linked-findings{margin:28px 0}#findings-status{font-size:14px;line-height:1.65;color:#555;margin:14px 0 20px}.linked-finding{border-bottom:1px solid #c6c6c3;padding:0 0 22px;margin-bottom:22px}.linked-finding h4{font-size:12px;font-weight:600;margin:0 0 12px}.linked-finding blockquote{font-size:22px;line-height:1.45;letter-spacing:-.02em;margin:0 0 14px;overflow-wrap:anywhere}.linked-finding p{font-size:14px;line-height:1.65;color:#555;margin:0}.linked-finding .finding-location{font-size:12px;color:#626262;margin-top:14px;font-variant-numeric:tabular-nums}
+
+.lane{max-width:16%;white-space:normal;overflow-wrap:anywhere}@media(max-width:600px){.lane{max-width:24%}}

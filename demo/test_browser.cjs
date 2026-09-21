@@ -1,9 +1,10 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const base=process.env.BRAESS_REPLAY_URL||'http://127.0.0.1:4174';
 const fs=require('fs');const path=require('path');const out=path.join(__dirname,'../.impeccable/review/');fs.mkdirSync(out,{recursive:true});
 (async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const results=[];
 for(const [name,width] of [['desktop',1440],['mobile',390]]){
  const page=await browser.newPage({viewport:{width,height:1000},reducedMotion:'reduce'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:4174');await page.getByRole('button',{name:'Play replay',exact:true}).waitFor();await page.waitForFunction(()=>!document.getElementById('play').disabled);await page.evaluate(()=>document.fonts.ready);
+ await page.goto(base);await page.getByRole('button',{name:'Play replay',exact:true}).waitFor();await page.waitForFunction(()=>!document.getElementById('play').disabled);await page.evaluate(()=>document.fonts.ready);
  if(await page.locator('#completed').textContent()!=='1')throw Error('Final completed count');
  if(await page.locator('#uncertain').textContent()!=='1')throw Error('Final uncertain count');
  if(await page.locator('#deferred').textContent()!=='1')throw Error('Final deferred count');
@@ -49,7 +50,7 @@ for(const variant of ['legacy','partial','malformed']){
  if(variant==='malformed')response.data.routing_trace.decision.confidence=2;
  const page=await browser.newPage({viewport:{width:390,height:1000}});
  await page.route('**/replay.json',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)}));
- await page.goto('http://127.0.0.1:4174');
+ await page.goto(base);
  if(variant==='malformed'){
    await page.getByText('Recording unavailable',{exact:true}).waitFor();
    if(!await page.locator('#play').isDisabled())throw Error('Malformed trace enabled playback');
@@ -60,6 +61,6 @@ for(const variant of ['legacy','partial','malformed']){
  }
  results.push({traceVariant:variant,passed:true});await page.close();
 }
-const errorPage=await browser.newPage();await errorPage.route('**/replay.json',r=>r.fulfill({status:404,body:'missing'}));await errorPage.goto('http://127.0.0.1:4174');await errorPage.getByText('Recording unavailable',{exact:true}).waitFor();results.push({errorState:true,disabled:await errorPage.locator('#play').isDisabled()});
-const probe=await errorPage.request.get('http://127.0.0.1:4174/../docs/DOGFOOD.md');if(probe.status()!==404)throw Error('Private asset leaked');
+const errorPage=await browser.newPage();await errorPage.route('**/replay.json',r=>r.fulfill({status:404,body:'missing'}));await errorPage.goto(base);await errorPage.getByText('Recording unavailable',{exact:true}).waitFor();results.push({errorState:true,disabled:await errorPage.locator('#play').isDisabled()});
+const probe=await errorPage.request.get(base+'/../docs/DOGFOOD.md');if(probe.status()!==404)throw Error('Private asset leaked');
 fs.writeFileSync(out+'discovery-browser.json',JSON.stringify(results,null,2));console.log(results);await browser.close();})().catch(e=>{console.error(e);process.exit(1)});
