@@ -7,11 +7,14 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from gateway_e2e import gateway
 from observe import observe
+from budget import Budget
 from recording import Recorder, canonical, digest, verify
 
 
 def run(output, binary):
     output.mkdir(parents=True, exist_ok=False)
+    budget = Budget.create(output / 'budget', cap_usd='0.06', max_attempts=6,
+                           pricing_sha256=digest(b'synthetic fixture estimates, not billable prices'))
     recorder = Recorder(output / 'recording', scope='synthetic',
                         metadata={'gateway_binary_sha256': digest(binary.read_bytes())})
     cases = ['general', 'coding', 'reasoning', 'uncertain', 'malformed', 'error_handler']
@@ -22,7 +25,7 @@ def run(output, binary):
                 recorder.append('task_queued', f'task-{i}', document_id=f'fixture-{i}',
                                 family_id=f'fixture-{i}', modality='text')
             with ThreadPoolExecutor(max_workers=2) as pool:
-                jobs = [pool.submit(observe, recorder, f'task-{i}', url + '/route', text)
+                jobs = [pool.submit(observe, recorder, f'task-{i}', url + '/route', text, budget=budget, estimate_usd='0.01')
                         for i, text in enumerate(cases)]
                 for job in jobs:
                     job.result()
@@ -33,6 +36,10 @@ def run(output, binary):
     assert result['summary']['incomplete'] == 0
     assert result['summary']['uncertain'] >= 1
     assert result['summary']['total_cost_usd'] is None
+    budget_status = budget.inspect()
+    assert budget_status['attempts'] == 6 and budget_status['unresolved'] == 6
+    assert budget_status['accounted_usd'] == '0.06'
+    (output / 'budget-status.json').write_bytes(canonical(budget_status))
     (output / 'replay.json').write_bytes(canonical(result))
     print('PASS: real gateway, synthetic providers, measured observer events; no paid calls')
     print(result['summary'])

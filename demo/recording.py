@@ -19,7 +19,7 @@ MAX_EVENTS = 100_000
 MAX_BYTES = 32 * 1024 * 1024
 FIELDS = {
     'task_queued': {'document_id', 'family_id', 'modality'},
-    'request_started': {'input_sha256'},
+    'request_started': {'input_sha256', 'budget_attempt_id', 'budget_reserved_usd', 'pricing_sha256'},
     'response_received': {'http_status', 'response_sha256', 'elapsed_ms', 'route',
                           'reason', 'policy_version', 'decision_model', 'handler_index',
                           'decision_input_tokens', 'decision_output_tokens',
@@ -70,7 +70,7 @@ def validate(event, states):
         elif key == 'elapsed_ms':
             if type(value) not in (float, int) or not math.isfinite(value) or value < 0:
                 raise ValueError('invalid duration')
-        elif key == 'generation_cost_usd':
+        elif key in ('generation_cost_usd', 'budget_reserved_usd'):
             if not isinstance(value, str) or len(value) > 64:
                 raise ValueError('cost must be a decimal string')
             amount = Decimal(value)

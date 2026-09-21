@@ -1,7 +1,7 @@
 # Discovery fleet demo — in development
 
 This companion will collect real execution evidence for an interactive replay and
-film. The review fleet, legal corpus, media workers, monetary budget controller
+film. The review fleet, legal corpus, media workers and complete live pricing/reconciliation
 are not implemented yet. A local replay interface now reads the recorded protocol smoke. The design and experiment scope
 are in [the dogfood plan](../docs/DOGFOOD.md).
 
@@ -48,6 +48,13 @@ still contain private information if callers misuse them. Supply opaque IDs.
 Treat run bundles as private until an explicit public-export validator and source
 content approval exist. No automatic public export or Pages deployment is enabled.
 
+## Shared spending reservations
+
+The observer can now reserve from a durable, concurrent run-level ledger before
+dispatch. Live scope requires that ledger. Unknown charges remain reserved, and
+estimate overruns freeze further admission. [Behavior, evidence and remaining
+pricing work](BUDGET.md). The pilot dollar cap is still awaiting selection.
+
 ## Explore the recorded replay
 
 ```sh
@@ -91,7 +98,8 @@ costs. A future film export must use the same event-driven renderer as playback.
 ## Next implementation boundaries
 
 - Internal decision/dispatch/completion events with task correlation.
-- Shared durable dollar reservations before live concurrent work.
+- Conservative pricing estimates and full receipt reconciliation; shared durable
+  reservations and observer dispatch gating are implemented and tested.
 - Corpus manifest and source-location-preserving extraction.
 - Reviewer output schema and validated text/image/audio evidence locators.
 - Public-export validation and film capture. The local synthetic replay and its

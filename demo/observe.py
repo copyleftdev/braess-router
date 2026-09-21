@@ -14,7 +14,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def observe(recorder, task_id, gateway_url, text, *, timeout=15):
+def observe(recorder, task_id, gateway_url, text, *, timeout=15, budget=None, estimate_usd=None):
     url = urllib.parse.urlsplit(gateway_url)
     if (url.scheme != 'http' or not ipaddress.ip_address(url.hostname).is_loopback or
             url.username or url.password or url.query or url.fragment or url.path != '/route'):
@@ -22,7 +22,15 @@ def observe(recorder, task_id, gateway_url, text, *, timeout=15):
     wire = json.dumps({'request': text}).encode()
     if len(wire) > 65_536:
         raise ValueError('request too large')
-    recorder.append('request_started', task_id, input_sha256=digest(wire))
+    reservation = {}
+    if recorder.manifest['scope'] == 'live' and budget is None:
+        raise ValueError('live observation requires a shared spending ledger')
+    if budget is not None:
+        attempt = digest((recorder.manifest['run_id'] + ':' + task_id).encode())
+        receipt = budget.reserve(attempt, request_sha256=digest(wire), estimate_usd=estimate_usd)
+        reservation = {'budget_attempt_id': attempt, 'budget_reserved_usd': receipt['reserved_usd'],
+                       'pricing_sha256': budget.pricing}
+    recorder.append('request_started', task_id, input_sha256=digest(wire), **reservation)
     started = time.monotonic_ns()
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     try:
