@@ -10,3 +10,4 @@ creds/
 *.budget
 *.journal
 __pycache__/
+/.impeccable/review/
