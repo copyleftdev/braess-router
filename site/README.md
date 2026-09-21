@@ -17,3 +17,5 @@ Typography: self-hosted Archivo by Omnibus-Type, SIL Open Font License; see `ass
 ## GitHub Pages
 
 Published at https://copyleftdev.github.io/braess-router/. The Pages workflow validates every site change in pull requests and deploys from `main` after merge. `scripts/check_site.py` stages an explicit public asset list, excluding repository documents, design notes, screenshots, and credentials. Deployment uses GitHub’s short-lived token; no additional secret is required.
+
+Search and agent-discovery artifacts, crawl-policy scope, validation and account follow-through are documented in [SEO.md](SEO.md).
