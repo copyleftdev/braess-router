@@ -1,0 +1,21 @@
+# Braess Router
+
+> Braess Router is an independent, open-source Rust semantic router using TypeSafe AI's Jev for typed route selection and Poise for endpoint selection.
+
+Single-server alpha with loopback-only handlers. It is not an official TypeSafe project. The landing-page traffic visualization uses historical synthetic outcomes with illustrative timing; it is not a live service dashboard or a production benchmark. MIT OR Apache-2.0: choose either license. Prefer the repository's current configuration and operator documentation for integration details.
+
+## Project
+
+- [Landing page in Markdown](https://copyleftdev.github.io/braess-router/index.md): Product overview, routing behavior, experiment scope, and links.
+- [Repository README](https://raw.githubusercontent.com/copyleftdev/braess-router/main/README.md): Current setup, capabilities, and limits.
+- [Operations](https://raw.githubusercontent.com/copyleftdev/braess-router/main/docs/OPERATIONS.md): Runtime configuration and operating constraints.
+- [Deployment](https://raw.githubusercontent.com/copyleftdev/braess-router/main/docs/DEPLOYMENT.md): Single-server installation and lifecycle.
+- [Recovery](https://raw.githubusercontent.com/copyleftdev/braess-router/main/docs/RECOVERY.md): Offline inspection, quiescent migration, and unresolved work.
+- [Acceptance](https://raw.githubusercontent.com/copyleftdev/braess-router/main/docs/ACCEPTANCE.md): Evidence requirements and open v1 acceptance work.
+
+## Optional
+
+- [Observed Jev contract](https://raw.githubusercontent.com/copyleftdev/braess-router/main/docs/PROVIDER_CONTRACT.md): Finite observed cases and synthetic response-injection coverage.
+- [Traffic outcome extract](https://copyleftdev.github.io/braess-router/traffic-data.json): Phase counts, sampled outcomes, and source SHA256 hashes.
+- [TypeSafe documentation](https://docs.typesafe.ai/introduction): Upstream Jev concepts and typed primitives.
+- [Poise](https://github.com/copyleftdev/poise-rs): Endpoint selection primitives.
