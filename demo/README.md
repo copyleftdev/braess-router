@@ -106,12 +106,38 @@ Live recordings require a future content-review/export gate. Browser parsing
 checks basic shape; the Python verifier is the integrity authority. Hashes alone
 are not an authenticity proof.
 
-The committed replay was exported from `artifacts/discovery-fleet-ocr-link-v1`:
-three tasks, eleven events, 35.20 ms observed elapsed time. The task inspector
+The committed replay was exported from `artifacts/discovery-fleet-routing-trace-v2`:
+three tasks, eleven events, 36.80 ms observed elapsed time. The task inspector
 shows source-validation counts, route/model/provider, tokens, admission estimate,
 receipt cost, event times and provenance hashes. It only reveals events at or
 before the replay clock. A deferred square stays at intake; an uncertain diamond
 remains separate from accepted completion even after a successful HTTP response.
+
+The decision panel shows the recorded route distribution, model confidence and
+supported score against configured minimums. Gateway send-to-validation intervals
+use a separate local clock; they are revealed only after the observer receives
+the response. Missing endpoints stay unknown. These synthetic provider scores
+are not legal-accuracy estimates.
+
+## Capture a local film draft
+
+With the loopback preview running, Playwright available and FFmpeg/ffprobe on PATH:
+
+```sh
+node demo/record_film.cjs artifacts/NEW_FILM_DIRECTORY
+```
+
+Set `PLAYWRIGHT_MODULE` to an installed module path if it is not resolvable by
+Node. Capture refuses existing output directories. It records the same renderer
+and replay controls, then visits accepted, uncertain and deferred tasks. The
+output includes WebM, H.264 MP4 and a manifest with recording/renderer hashes,
+capture steps and measured video properties. Capture wall time is separate from
+the two recorded clocks. No provider calls occur and live scope is refused.
+
+The first local draft is 26.28 seconds at 1440×1100. It demonstrates synthetic
+fleet execution, not the final live-corpus film. Capture verifies source stability,
+outcome assertions and basic encoding; a complete manifest does not substitute
+for visually inspecting the film or approving publication. Artifacts stay ignored.
 
 ## Visualization notes carried forward
 
@@ -136,9 +162,9 @@ costs. A future film export must use the same event-driven renderer as playback.
 
 ## Next implementation boundaries
 
-- Visualize the newly recorded [routing traces](TELEMETRY.md), including decision
-  distributions and partial failure timings. Durable server-side events remain
-  separate work; response traces cannot survive every client disconnect.
+- The [routing trace panels](TELEMETRY.md) now show decision distributions and
+  partial timings. Durable server-side events remain separate work; response
+  traces cannot survive every client disconnect.
 - Conservative pricing estimates and full receipt reconciliation; shared durable
   reservations and observer dispatch gating are implemented and tested.
 - Join sampled native media to text IDs and implement vision review. A bounded
@@ -147,7 +173,8 @@ costs. A future film export must use the same event-driven renderer as playback.
   verified provider pricing; [text findings and draft redaction contracts](REVIEW.md)
   are now connected to the bounded runner.
   Native image redaction and audio coordinates still need separate implementation.
-- Public-export validation and film capture. The local synthetic replay and its
+- Public live-export validation and the final corpus film. A local synthetic
+  film draft is captured; the replay and its
   desktop/mobile browser verification are complete for the current smoke slice;
   see the [surface brief](../.impeccable/surface-briefs/discovery-replay.md).
 

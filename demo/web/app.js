@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const names = {task_queued:'Queued',request_started:'Request sent',response_received:'Response received',review_validated:'Evidence validated',task_completed:'Completed',task_uncertain:'Uncertain',task_deferred:'Deferred'};
-  let bundle, tasks=[], lanes=[], selected, duration=1, clock=0, playing=false, lastFrame=0, raf=0;
+  let bundle, tasks=[], lanes=[], selected, duration=1, clock=0, playing=false, lastFrame=0, raf=0, inspectedKey='';
   const canvas=$('flow'), ctx=canvas.getContext('2d');
   let width=1,height=1;
   const ms=n=>(n/1e6).toFixed(2)+' ms';
@@ -72,6 +72,9 @@
   function inspect(){
     const task=tasks.find(t=>t.id===selected);if(!task)return;
     const events=visible(task),r=response(task),s=state(task);
+    const key=task.id+':'+(events.at(-1)?.seq||0);
+    if(key===inspectedKey)return;
+    inspectedKey=key;
     const validation=events.find(e=>e.kind==='review_validated')?.data;
     const reservation=events.find(e=>e.kind==='request_started')?.data;
     const failure=events.find(e=>e.kind==='task_uncertain')?.data.error;
@@ -88,11 +91,59 @@
     $('facts').replaceChildren(...facts.flatMap(([k,v])=>[element('dt',k),element('dd',String(v))]));
     $('sequence').replaceChildren(...events.map(e=>{const li=element('li');li.append(element('span',names[e.kind]),element('time',ms(e.elapsed_ns)));return li;}));
     $('provenance').textContent='Run '+bundle.run.run_id+' · Source '+task.id+' · Last visible event SHA-256 '+(events.at(-1)?.sha256||'not observed')+(validation?' · Validated review SHA-256 '+validation.review_sha256:'')+(reservation?.budget_attempt_id?' · Budget attempt '+reservation.budget_attempt_id:'');
+    inspectDecision(r?.routing_trace,s);
+  }
+  function inspectDecision(trace,s){
+    const decision=trace?.decision, pct=value=>(value*100).toFixed(1)+'%';
+    $('route-scores').replaceChildren();$('gate-scores').replaceChildren();$('stage-times').replaceChildren();
+    $('score-note').hidden=!decision;
+    $('decision-summary').textContent=decision
+      ?'Model choice: '+decision.choice+'. Gate result: '+decision.route+' ('+decision.reason+').'
+      :s==='task_deferred'?'Admission stopped this task before a routing decision.'
+      :trace?'No validated decision was returned.'
+      :'No decision evidence is available at this replay time.';
+    if(decision){
+      const sorted=Object.entries(decision.probabilities).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+      for(const [name,value] of sorted){
+        const row=element('div',undefined,'score-row'),label=element('span',name),track=element('span',undefined,'score-track'),bar=element('span',undefined,'score-fill');
+        row.dataset.choice=String(name===decision.choice);bar.style.width=(value*100)+'%';track.setAttribute('aria-hidden','true');track.append(bar);
+        row.append(label,track,element('span',pct(value),'score-value'));$('route-scores').append(row);
+      }
+      for(const [label,value,minimum] of [['Chosen probability',decision.probabilities[decision.choice],decision.min_probability],['Confidence',decision.confidence,decision.min_confidence],['Supported',decision.supported,decision.min_supported]]){
+        $('gate-scores').append(element('dt',label),element('dd',pct(value)+' / '+pct(minimum)+' minimum'));
+      }
+    }
+    $('timing-summary').textContent=trace?'Local execution ended at '+ms(trace.finished_ns)+'. Received with the response.':s==='task_deferred'?'Not dispatched; no gateway timing exists.':'No gateway timing is available at this replay time.';
+    if(!trace)return;
+    for(const [label,start,end] of [['Jev',trace.decision_send_started_ns,trace.decision_validated_ns],['Handler',trace.handler_send_started_ns,trace.handler_validated_ns]]){
+      const row=element('div',undefined,'timing-row'),head=element('div',undefined,'timing-label');
+      head.append(element('span',label),element('span',start===null?'Not observed':end===null?'Validation not observed':ms(end-start)));
+      row.append(head);
+      if(start!==null&&end!==null){
+        const track=element('div',undefined,'timing-track'),bar=element('span',undefined,'timing-fill');
+        track.setAttribute('aria-hidden','true');bar.style.left=(start/Math.max(1,trace.finished_ns)*100)+'%';bar.style.width=((end-start)/Math.max(1,trace.finished_ns)*100)+'%';track.append(bar);row.append(track);
+      }
+      row.append(element('p',start===null?'No send start recorded.':'Send '+ms(start)+' · '+(end===null?'validation unknown':'validated '+ms(end)),'study-note'));
+      $('stage-times').append(row);
+    }
+  }
+  function checkTrace(trace){
+    if(!trace||typeof trace!=='object'||!Number.isSafeInteger(trace.finished_ns)||trace.finished_ns<0)throw Error('Invalid trace');
+    let last=0,missing=false;
+    for(const key of ['decision_send_started_ns','decision_validated_ns','handler_send_started_ns','handler_validated_ns']){
+      const n=trace[key];if(n===null){missing=true;continue;}
+      if(missing||!Number.isSafeInteger(n)||n<last||n>trace.finished_ns)throw Error('Invalid trace boundaries');last=n;
+    }
+    const d=trace.decision;if(d===null){if(trace.decision_validated_ns!==null)throw Error('Missing decision');return;}
+    if(!d||trace.decision_validated_ns===null||typeof d.probabilities!=='object'||d.probabilities===null)throw Error('Invalid decision');
+    const entries=Object.entries(d.probabilities),score=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=1;
+    if(entries.length<2||entries.length>33||entries.some(([k,n])=>!(/^[a-z][a-z0-9_-]{0,63}$/).test(k)||!score(n))||!Object.hasOwn(d.probabilities,d.choice)||!Object.hasOwn(d.probabilities,d.route)||typeof d.reason!=='string'||d.reason.length>64||['confidence','supported','min_confidence','min_probability','min_supported'].some(k=>!score(d[k])))throw Error('Invalid decision scores');
   }
   function check(data){
     if(data?.run?.schema_version!==1||data.run.scope!=='synthetic'||data.sealed!==true||!Array.isArray(data.events)||!data.events.length||data.events.length>100000)throw Error('Unsupported recording');
     let last=-1;const ids=new Set();
     data.events.forEach((e,i)=>{if(!names[e.kind]||e.seq!==i+1||!Number.isSafeInteger(e.elapsed_ns)||e.elapsed_ns<last||typeof e.task_id!=='string'||!e.data||typeof e.data!=='object')throw Error('Invalid event sequence');last=e.elapsed_ns;ids.add(e.task_id);});
+    data.events.filter(e=>e.data.routing_trace!==undefined).forEach(e=>checkTrace(e.data.routing_trace));
     if(ids.size>200)throw Error('This preview supports at most 200 tasks');
     return data;
   }

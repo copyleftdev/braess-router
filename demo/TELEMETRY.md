@@ -45,5 +45,7 @@ synthetic catalog. Live publication remains refused.
 The integration gate checks accepted routes, fallback, malformed and invalid
 decisions, failed handlers, deadlines and refusal before dispatch. The fleet
 smoke checks that gateway traces survive capture and validation. These tests use
-local fixtures, not paid inference. The committed web replay predates these
-traces; stage visualization and durable server-side telemetry are still pending.
+local fixtures, not paid inference. The committed web replay displays route
+probabilities, gate minimums and separate Jev/handler timing bars. Evidence only
+appears once the containing response is visible at the observer clock; missing
+timing endpoints remain unknown. Durable server-side telemetry remains pending.

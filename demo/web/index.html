@@ -15,12 +15,35 @@
 <section class="instrument" aria-label="Recorded routing activity">
 <div class="instrument-top"><span id="scope-label">Loading evidence</span><span id="event-count">—</span></div>
 <div class="stage"><canvas id="flow" aria-hidden="true"></canvas><div class="intake">Recorded tasks<span id="task-total">—</span></div><div class="aperture"><strong>BRAESS</strong><span>REQUEST OBSERVER</span></div><div id="lanes"></div></div>
-<p class="path-note">Measured client events. Paths illustrate the returned route; internal dispatch timing is not observed.</p>
+<p class="path-note">Measured client events. Paths illustrate returned routes; gateway timings are shown separately below.</p>
 <div id="controls" class="controls"><button id="play" disabled>Play replay</button><button id="reset" disabled>Start</button><label class="scrubber">Recorded time<input type="range" id="seek" min="0" max="1000" value="1000" disabled aria-label="Recorded time"></label><output id="time">—</output><label class="speed">Speed<select id="speed"><option value="0.001">0.001×</option><option value="0.01" selected>0.01×</option><option value="0.1">0.1×</option><option value="1">1×</option></select></label></div>
 <div class="run-summary" aria-live="off"><p><strong id="completed">—</strong> completed</p><p><strong id="uncertain">—</strong> uncertain</p><p><strong id="deferred">—</strong> deferred</p><p><strong id="pending">—</strong> pending</p><p>Total cost <strong id="cost">Not reported</strong></p></div>
 <p id="status" role="status" class="status">Loading replay data. No provider calls are made by this page.</p>
 </section>
-<section class="review" aria-label="Task evidence"><div class="task-index"><div class="section-title"><h2>The record</h2><span>Choose a task to inspect</span></div><div id="tasks"></div><p class="record-note">A handler completion confirms a returned result. It does not establish review accuracy.</p></div><aside class="evidence" aria-label="Selected task details"><div class="evidence-heading"><h2 id="selected-title">Select a task</h2><span id="selected-state"></span></div><p id="selected-description">The original event sequence will appear here.</p><dl id="facts"></dl><h3>Observed sequence</h3><ol id="sequence"></ol><details><summary>Provenance</summary><p id="provenance"></p></details></aside></section>
+<section class="review" aria-label="Task evidence">
+  <div class="task-index">
+    <div class="section-title"><h2>The record</h2><span>Choose a task to inspect</span></div>
+    <div id="tasks"></div>
+    <p class="record-note">A handler completion confirms a returned result. It does not establish review accuracy.</p>
+    <section class="decision-study" aria-labelledby="decision-heading">
+      <h2 id="decision-heading">Why this route</h2>
+      <p id="decision-summary">Select a recorded task to inspect its decision.</p>
+      <div id="route-scores" aria-label="Recorded route probabilities"></div>
+      <dl id="gate-scores"></dl>
+      <p id="score-note" class="study-note" hidden>Scores come from the synthetic Jev fixture. They do not measure legal accuracy.</p>
+      <h3>Inside the gateway</h3>
+      <p id="timing-summary">No timing evidence selected.</p>
+      <div id="stage-times"></div>
+      <p class="study-note">Offsets use the gateway’s own clock. Send-to-validation intervals include local overhead. Missing endpoints remain unknown.</p>
+    </section>
+  </div>
+  <aside class="evidence" aria-label="Selected task details">
+    <div class="evidence-heading"><h2 id="selected-title">Select a task</h2><span id="selected-state"></span></div>
+    <p id="selected-description">The original event sequence will appear here.</p>
+    <dl id="facts"></dl><h3>Observed sequence</h3><ol id="sequence"></ol>
+    <details><summary>Provenance</summary><p id="provenance"></p></details>
+  </aside>
+</section>
 <footer><span>Replay, not live inference.</span><a href="replay.json" download>Download recorded events <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 16h12"/></svg></a></footer>
 </main><noscript><p class="noscript">Enable JavaScript to explore the replay, or <a href="replay.json">read the recorded events</a>.</p></noscript>
 </body></html>
