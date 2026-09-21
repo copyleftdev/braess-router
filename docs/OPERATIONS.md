@@ -76,8 +76,9 @@ request deadline; permanently stalled storage has no proven shutdown bound.
 
 ## Acceptance still pending
 
-Broader provider boundary coverage, operational recovery/migration and a frozen v1
-acceptance run remain open. Deployment packaging has synthetic lifecycle checks;
+Seven [provider contract cases](PROVIDER_CONTRACT.md) are captured and replayed.
+Provider-specific unresolved-work reconciliation and a frozen v1 acceptance run
+remain open. These captures do not prove complete provider compatibility. Deployment packaging has synthetic lifecycle checks;
 host and workload acceptance still require representative validation. The small captured provider
 corpus in the development workspace does not establish a universally accurate mock.
 Synthetic CI checks establish local behavior, not production semantic quality.

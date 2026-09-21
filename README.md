@@ -43,7 +43,8 @@ Configure the endpoints first. For live Jev, use
 
 See [single-server deployment](docs/DEPLOYMENT.md).
 Read the [operator guide](docs/OPERATIONS.md), [development guide](CONTRIBUTING.md),
-and [release process](docs/RELEASING.md). CI uses synthetic fixtures without API keys.
+and [release process](docs/RELEASING.md).
+[Observed provider fixtures](docs/PROVIDER_CONTRACT.md) run offline in CI without API keys.
 
 ## Why Braess?
 

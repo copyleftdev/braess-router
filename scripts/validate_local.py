@@ -87,7 +87,8 @@ def run(output):
                                      ('catalog', 'gateway_catalog_e2e.py', 'braess-router'),
                                      ('readiness', 'gateway_readiness_e2e.py', 'braess-router'),
                                      ('evaluator', 'custom_eval_e2e.py', 'braess-eval'),
-                                     ('deployment', 'deployment_e2e.py', 'braess-router')]:
+                                     ('deployment', 'deployment_e2e.py', 'braess-router'),
+                                     ('provider_contract', 'provider_contract_e2e.py', 'braess-router')]:
             stage(name, [sys.executable, str(ROOT / 'scripts' / script), str(output / name),
                          '--binary', str(target / binary)])
         actual = {str(p.relative_to(ROOT)): digest(p) for p in source_paths()}
