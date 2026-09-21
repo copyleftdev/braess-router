@@ -3,3 +3,5 @@
 
 #source-selection{font-size:14px;line-height:1.65;margin-top:18px;color:var(--ink)}.inspect-source{background:#101010;color:#eeeeea;min-height:44px;padding:10px 14px;margin:16px 10px 0 0;font-size:12px}.inspect-source:hover{background:#303030}
 .source-heading p{min-width:0;overflow-wrap:anywhere}
+
+#submitted-pages{padding-bottom:24px}#submitted-status{font-size:13px;line-height:1.8;margin-top:12px}

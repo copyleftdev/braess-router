@@ -100,7 +100,7 @@
     function resetFinding(){if(selection){clearFinding();chooseWord();}}
     function setReplay(context){
       replay=context;
-      if(selection && (context.run_id!==selection.run_id || context.task_id!==selection.task_id || context.review_sha256!==selection.review_sha256 || context.elapsed_ns<selection.visible_after))resetFinding();
+      if(selection && (context.run_id!==selection.run_id || context.task_id!==selection.task_id || (selection.input_reference_sha256?context.input_reference_sha256!==selection.input_reference_sha256:context.review_sha256!==selection.review_sha256) || context.elapsed_ns<selection.visible_after))resetFinding();
     }
     function show(association,finding,page){
       if(!replay || replay.run_id!==association.run_id || replay.task_id!==association.task_id || replay.review_sha256!==association.review_sha256 || replay.elapsed_ns<association.finding_visibility_after_elapsed_ns || association.inspector_manifest_sha256!==manifestSha256 || association.document_id!==m.document_id || association.source_sha256!==m.source_sha256 || association.native_source_sha256!==m.native_source_sha256 || association.ocr_mapping_sha256!==m.ocr_mapping_sha256 || !Number.isInteger(page) || !m.pages[page-1])return false;
@@ -138,7 +138,19 @@
       transcript.scrollTop+=mark.getBoundingClientRect().top-transcript.getBoundingClientRect().top-40;
       return true;
     }
-    window.braessSource=Object.freeze({manifestSha256,setReplay,show});
+    function showInput(association,page){
+      const selected=association.pages.find(p=>p.page===page),source=m.pages[page-1];
+      if(!replay||replay.run_id!==association.run_id||replay.task_id!==association.task_id||replay.input_reference_sha256!==association.reference_sha256||replay.elapsed_ns<association.input_visibility_after_elapsed_ns||association.inspector_manifest_sha256!==manifestSha256||association.document_id!==m.document_id||association.native_source_sha256!==m.native_source_sha256||!selected||!source||selected.sha256!==source.sha256||selected.width!==source.width||selected.height!==source.height)return false;
+      $('source-page').value=String(page-1);choosePage();
+      selection={run_id:association.run_id,task_id:association.task_id,input_reference_sha256:association.reference_sha256,visible_after:association.input_visibility_after_elapsed_ns};
+      $('source-box').style.display='none';
+      $('source-transcript').replaceChildren(document.createTextNode(current.map(wordText).join(' ')));
+      $('source-context').textContent='Submitted image input for the selected task. Pixel identity is verified; model understanding is not established.';
+      selectionNote.textContent=`Submitted page ${page} · ${selected.width} × ${selected.height} pixels · transport receipt only.`;selectionNote.hidden=false;
+      $('source-word-detail').textContent='OCR text is provided for inspection; it does not establish what the image reviewer read.';
+      panel.scrollIntoView({block:'start',behavior:'instant'});$('source-page').focus({preventScroll:true});return true;
+    }
+    window.braessSource=Object.freeze({manifestSha256,setReplay,show,showInput});
     $('source-page').addEventListener('change',choosePage);
     $('source-word').addEventListener('change',chooseWord);
     $('source-zoom').addEventListener('change',zoom);

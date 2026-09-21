@@ -93,3 +93,45 @@ This is transport evidence on real source pixels, not a semantic evaluation.
 The local Jev fixture chooses a scripted route; no model has interpreted these
 scans in this experiment. Live capability, quality, pricing and content approval
 remain separate gates.
+
+## Inspect submitted pages
+
+A private execution replay can now connect its image receipt to the exact scan
+pages sent to the handler:
+
+```sh
+python3 demo/serve.py --port 4183 \
+  --recording artifacts/vision-corpus-transport-v3/vision-recording \
+  --image-reference artifacts/vision-corpus-transport-v3/vision-reference.json \
+  --image-task vision-fixture \
+  --evidence-bundle artifacts/ocr-review-replay-v1/inspector
+```
+
+`vision_link.py` verifies the sealed recording, exact submitted reference bytes,
+queued document identity, inspector manifest, ordered page hashes, dimensions and
+byte lengths. The receipt must bind that exact reference and page order. Changed
+reference whitespace, wrong documents, altered pixels, duplicate selections,
+incorrect geometry and absent legacy receipts cannot acquire a source link.
+The private association contains no prompt or generated answer. It can also be
+saved independently, without starting the viewer:
+
+```sh
+python3 demo/vision_link.py RECORDING EXACT_REFERENCE INSPECTOR TASK_ID NEW_LINK.json
+```
+
+The viewer offers **Inspect submitted page** only after the recorded response.
+Selecting it opens the source scan without finding boxes or a highlighted quote;
+the accompanying OCR text is extraction evidence, not evidence of what the image
+reviewer read. Rewinding or changing tasks clears the association; manually
+choosing an OCR word or page returns to ordinary source inspection. Source pages
+remain available for manual inspection independently of replay time. The same
+existing black-and-white inspector supports both input provenance and separately
+validated OCR findings, with explicit labels for their different meanings.
+
+This association proves equality with provisioned input assets, not original
+native-file authenticity, model understanding, review accuracy or an approved
+redaction. Browser checks cover both actual scan pages, replay gating, manual
+selection clearing and rejected mismatched associations at desktop and mobile
+sizes. The original OCR-finding navigation regression also passes. Existing
+public-export and frozen-package commands do not yet include this new association;
+use the private loopback preview for this slice.

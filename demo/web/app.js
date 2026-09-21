@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const names = {task_queued:'Queued',request_started:'Request sent',response_received:'Response received',review_validated:'Evidence validated',task_completed:'Completed',task_uncertain:'Uncertain',task_deferred:'Deferred'};
-  let bundle, tasks=[], lanes=[], selected, duration=1, clock=0, playing=false, lastFrame=0, raf=0, inspectedKey='', reviewLinks=null, linksFailed=false;
+  let bundle, tasks=[], lanes=[], selected, duration=1, clock=0, playing=false, lastFrame=0, raf=0, inspectedKey='', reviewLinks=null, linksFailed=false, imageLink=null, imageLinkFailed=false;
   const canvas=$('flow'), ctx=canvas.getContext('2d');
   let width=1,height=1;
   const ms=n=>(n/1e6).toFixed(2)+' ms';
@@ -111,7 +111,7 @@
     if(key===inspectedKey)return;
     inspectedKey=key;
     const validation=events.find(e=>e.kind==='review_validated')?.data;
-    window.braessSource?.setReplay({run_id:bundle.run.run_id,task_id:task.id,elapsed_ns:clock,review_sha256:validation?.review_sha256||null});
+    window.braessSource?.setReplay({run_id:bundle.run.run_id,task_id:task.id,elapsed_ns:clock,review_sha256:validation?.review_sha256||null,input_reference_sha256:r?.generation_input_evidence?.reference_sha256||null});
     const reservation=events.find(e=>e.kind==='request_started')?.data;
     const failure=events.find(e=>e.kind==='task_uncertain')?.data.error;
     $('selected-title').textContent=task.document;
@@ -129,8 +129,35 @@
     $('sequence').replaceChildren(...events.map(e=>{const li=element('li');li.append(element('span',names[e.kind]),element('time',ms(e.elapsed_ns)));return li;}));
     $('provenance').textContent='Run '+bundle.run.run_id+' · Source '+task.id+' · Last visible event SHA-256 '+(events.at(-1)?.sha256||'not observed')+(validation?' · Validated review SHA-256 '+validation.review_sha256:'')+(reservation?.budget_attempt_id?' · Budget attempt '+reservation.budget_attempt_id:'');
     if(r?.generation_input_evidence){const input=r.generation_input_evidence;$('provenance').textContent+=' · Submitted image reference SHA-256 '+input.reference_sha256+' · Ordered image SHA-256 '+input.image_sha256.join(', ')+' · Transport receipt; image understanding is not established.';}
+    inspectImages(task, events);
     inspectFindings(task, events);
     inspectDecision(r?.routing_trace,s);
+  }
+  function inspectImages(task,events){
+    const panel=$('submitted-pages'),actions=$('submitted-actions');actions.replaceChildren();
+    panel.hidden=!imageLink&&!imageLinkFailed;if(panel.hidden)return;
+    if(imageLinkFailed){$('submitted-status').textContent='Submitted pages could not be verified. Restart with matching image-reference and source inputs.';return;}
+    const receipt=events.find(e=>e.kind==='response_received')?.data.generation_input_evidence;
+    if(task.id!==imageLink.task_id || receipt?.reference_sha256!==imageLink.reference_sha256){$('submitted-status').textContent='Page links become available with this task’s recorded image receipt.';return;}
+    $('submitted-status').textContent='Exact input pixels verified against the receipt. This does not establish image understanding or review accuracy.';
+    for(const page of imageLink.pages){
+      const button=element('button','Inspect submitted page '+page.page,'inspect-source');button.type='button';
+      button.disabled=window.braessSource?.manifestSha256!==imageLink.inspector_manifest_sha256;
+      button.addEventListener('click',()=>{if(!window.braessSource?.showInput(imageLink,page.page))$('submitted-status').textContent='The submitted page could not be verified at this replay time.';});
+      actions.append(button);
+    }
+  }
+  async function loadImageLink(){
+    if(bundle.presentation.profile!=='private_execution')return;
+    try{
+      const response=await fetch('image-link.json');if(response.status===404)return;if(!response.ok)throw Error('Missing image link');
+      const text=await response.text();if(text.length>65536)throw Error('Image link too large');const item=JSON.parse(text);
+      const task=tasks.find(t=>t.id===item.task_id),event=task?.events.find(e=>e.kind==='response_received'),input=event?.data.generation_input_evidence;
+      if(item.schema_version!==1||item.association!=='verified_image_input_receipt'||item.run_id!==bundle.run.run_id||item.scope!==bundle.run.scope||item.document_id!==task?.document||item.publication_approved!==false||item.model_understanding_established!==false||!input||item.reference_sha256!==input.reference_sha256||item.response_event_sha256!==event.sha256||item.input_visibility_after_elapsed_ns!==event.elapsed_ns||!Array.isArray(item.pages)||item.pages.length!==input.image_sha256.length)throw Error('Wrong image association');
+      const seen=new Set();for(const [i,p] of item.pages.entries()){if(!Number.isInteger(p.page)||p.page<1||seen.has(p.page)||p.sha256!==input.image_sha256[i]||['width','height','bytes'].some(k=>!Number.isSafeInteger(p[k])||p[k]<=0))throw Error('Wrong page');seen.add(p.page);}
+      imageLink=item;
+    }catch(_){imageLinkFailed=true;}
+    inspectedKey='';render();
   }
   function inspectFindings(task, events){
     const panel=$('linked-findings'), list=$('finding-list');list.replaceChildren();
@@ -250,7 +277,7 @@
       $('task-total').textContent=tasks.length+(['private_review','private_execution'].includes(bundle.presentation.profile)?' recorded tasks':' recorded fixtures');
       $('status').textContent='Paused at the end of the run. Play or scrub to inspect the observed sequence.';
       for(const id of ['play','reset','seek'])$(id).disabled=false;
-      $('play').setAttribute('aria-pressed','false');render();resize();loadLinks();
+      $('play').setAttribute('aria-pressed','false');render();resize();loadLinks();loadImageLink();
     }catch(error){$('scope-label').textContent='Recording unavailable';$('scope').textContent='The recording could not be loaded.';$('status').textContent='Unable to load a supported recording. Restore replay.json from the verified exporter and reload.';}
   }
   $('play').addEventListener('click',()=>setPlaying(!playing));

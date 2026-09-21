@@ -410,3 +410,79 @@ rerun. No implementation fix, rebuild or recapture was requested. This update
 completes the receipt-inspector documentation only. Live corpus/media review,
 semantic-quality evaluation, complete billing, publication and the broader
 dogfood goal remain outside this slice.
+
+## Submitted scan page navigation — 2026-09-21
+
+The private replay now connects an image-input receipt to the exact submitted
+scan pages. `demo/vision_link.py` verifies the original reference bytes against
+the sealed recording's receipt, the queued task's document, the inspector
+manifest and native source identity, and each ordered page's SHA-256,
+dimensions and byte count. The resulting association excludes the private
+prompt and explicitly leaves publication approval and model understanding
+false. Source bytes and hash identity must remain intact; this is evidence
+association, not image alteration or a new visual asset.
+
+The previous receipt-only entry describes the restriction at that stage. This
+extension permits an explicit private association through `demo/serve.py
+--recording … --image-reference … --image-task … --evidence-bundle …`; all four
+inputs are required together for that association. An evidence bundle alone
+still cannot accompany recording mode, and review corpus/tasks/run inputs
+remain incompatible. Public export and frozen-package paths do not currently
+support this new association. `demo/VISION.md` and `demo/TELEMETRY.md` document
+the CLI and evidence conventions.
+
+“Submitted scan pages” extends the existing pale task inspector with square
+“Inspect submitted page” buttons. Buttons become available only when the
+selected task's recorded response and matching receipt are visible. Selection
+opens the actual source pixels, scrolls to the source inspector and focuses
+its page control. The context identifies transport evidence and explicitly
+leaves image understanding unestablished. No finding boxes or highlighted
+quotes are introduced; companion OCR text does not establish what the image
+reviewer read. Rewinding before the response, changing tasks or manually
+changing pages clears the submitted-page selection. An invalid association
+shows an explanatory status without navigation buttons.
+
+The extension retains Archivo, monochrome hierarchy, flat rules, the existing
+source inspector and responsive composition. A local spacing adjustment gives
+the submitted-page section breathing room before the observed sequence.
+`DESIGN.md` and `.impeccable/design.json` remain unchanged. No new shipping
+raster or asset-metadata changes were made; source-bearing PNG captures remain
+private review evidence.
+
+Evidence checked for this bounded documentation pass:
+
+- Source: `demo/vision_link.py`, `demo/test_vision_link.py`, `demo/serve.py`,
+  `demo/web/app.js`, `inspector.js`, `inspector.css`, `index.html` and
+  `demo/test_submitted_pages.cjs`, alongside product, design and surface
+  authority. Source review confirms exact-reference binding and ordered page
+  identity checks. Task-change clearing was assessed through source/reviewer
+  evidence, not a separate recorded browser assertion in this pass.
+- [Recorded browser results](../review/submitted-pages-browser.json) pass at
+  1440px and 390px: both pages navigable, rewind and manual-page clearing,
+  rejection of an invalid association, no horizontal overflow and no page
+  errors. The source-page capture waits for image decoding and painted frames;
+  assertions also check page selection, decoded height and absence of finding
+  boxes or marked quotes. This documenter read the results and test source
+  without rerunning the browser or backend.
+- Intentional viewport captures of the submitted-page actions at
+  [desktop](../review/submitted-pages-desktop.png) and
+  [mobile](../review/submitted-pages-mobile.png), and the opened source at
+  [desktop](../review/submitted-source-desktop.png) and
+  [mobile](../review/submitted-source-mobile.png), were all opened by the
+  implementation owner and fresh finish reviewer. The preview on port 4183
+  uses an actual two-page source and a real local gateway recording with
+  synthetic provider responses; it is not evidence of live review quality.
+- The implementation owner reports **135 Python tests passed** and the
+  existing OCR source-navigation browser regression passing at both widths.
+  The supplied single detector pass over `app.js` returned `[]` before the
+  small spacing correction; it was not repeated. These are supplied execution
+  results, not independent documenter runs.
+
+Fresh reviewer `submitted_pages_reviewer` disposition: **SHIP this bounded UI
+slice after documentation; no material fixes required**. The reviewer inspected
+source, recorded results and final captures without an independent execution
+rerun, and requested no rebuild or recapture. This update completes the
+submitted-page navigation documentation only. It establishes pixel identity
+and transport association, not image understanding, semantic or legal quality.
+Live-quality evaluation, complete billing, a paid pilot and the final film
+remain unfinished; the broader goal is not complete.

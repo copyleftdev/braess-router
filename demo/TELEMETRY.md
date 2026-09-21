@@ -78,8 +78,9 @@ python3 demo/serve.py --port 4182 --recording RUN/vision-recording
 
 The server verifies and freezes the event bundle and labels it as private
 execution, preserving synthetic/live scope. This mode cannot be combined with
-review-corpus/tasks/run inputs or an evidence bundle. It does not fabricate a
-review association or claim that image input establishes understanding.
+review-corpus/tasks/run inputs. An evidence bundle requires the explicit submitted
+image association described in [VISION.md](VISION.md#inspect-submitted-pages).
+It does not fabricate a review finding or claim that image input establishes understanding.
 
 ```sh
 python3 demo/run_metrics.py RUN/recording NEW_METRICS.json
