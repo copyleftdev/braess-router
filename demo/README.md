@@ -110,7 +110,9 @@ costs. A future film export must use the same event-driven renderer as playback.
   reservations and observer dispatch gating are implemented and tested.
 - Native media acquisition and extraction; text-rendering manifests and exact
   source-location validation are implemented for a real TREC development sample.
-- Reviewer output schema and validated text/image/audio evidence locators.
+- Wire prepared review tasks and validated text findings into reviewer execution;
+  [text findings and draft redaction contracts](REVIEW.md) are implemented.
+  Image/audio coordinates still need separate validation.
 - Public-export validation and film capture. The local synthetic replay and its
   desktop/mobile browser verification are complete for the current smoke slice;
   see the [surface brief](../.impeccable/surface-briefs/discovery-replay.md).
