@@ -119,6 +119,7 @@
     $('selected-description').textContent=s==='task_deferred'?'The budget gate refused admission before dispatch. No provider request was made for this task.':failure==='review_validation_failed'?'A reviewer result returned, but its evidence failed validation. No finding was accepted; this task remains uncertain.':s==='task_uncertain'?'Completion was not confirmed. This task is retained as uncertain.':validation?'The finding’s quote and coordinates matched the source. This verifies the evidence link, not legal correctness.':r?.route==='fallback'?'Braess returned a local fallback. No handler completion is implied.':s==='task_completed'?'The gateway returned a handler result. A returned result does not establish legal-review accuracy.':'Only events up to the replay clock are shown.';
     const facts=[['Route',r?.route||'Not observed'],['Decision model',r?.decision_model||'Not reported'],['Policy',r?.policy_version||'Not reported'],['Handler index',r?.handler_index??'Not reported'],['Client duration',r?Number(r.elapsed_ms).toFixed(2)+' ms':'Not yet observed'],['Decision tokens',r?.decision_input_tokens!==undefined?r.decision_input_tokens+' in / '+(r.decision_output_tokens??'unknown')+' out':'Not reported'],['Generation model',r?.generation_model||'Not reported'],['Generation cost',r?.generation_cost_usd!==undefined?'$'+r.generation_cost_usd:'Not reported']];
     facts.push(['Source modality',events.find(e=>e.kind==='task_queued')?.data.modality||'Not observed'],
+      ['Reviewer input',r?.generation_input_evidence?`Text + ${r.generation_input_evidence.image_sha256.length} ${r.generation_input_evidence.image_sha256.length===1?'image':'images'} (receipt)`:'Not reported'],
       ['Validated findings',validation?.finding_count??'None accepted yet'],
       ['Admission reservation',reservation?.budget_reserved_usd!==undefined?'$'+reservation.budget_reserved_usd+' (estimate)':'Not reserved'],
       ['Generation provider',r?.generation_provider||'Not reported'],
@@ -127,6 +128,7 @@
     $('facts').replaceChildren(...facts.flatMap(([k,v])=>[element('dt',k),element('dd',String(v))]));
     $('sequence').replaceChildren(...events.map(e=>{const li=element('li');li.append(element('span',names[e.kind]),element('time',ms(e.elapsed_ns)));return li;}));
     $('provenance').textContent='Run '+bundle.run.run_id+' · Source '+task.id+' · Last visible event SHA-256 '+(events.at(-1)?.sha256||'not observed')+(validation?' · Validated review SHA-256 '+validation.review_sha256:'')+(reservation?.budget_attempt_id?' · Budget attempt '+reservation.budget_attempt_id:'');
+    if(r?.generation_input_evidence){const input=r.generation_input_evidence;$('provenance').textContent+=' · Submitted image reference SHA-256 '+input.reference_sha256+' · Ordered image SHA-256 '+input.image_sha256.join(', ')+' · Transport receipt; image understanding is not established.';}
     inspectFindings(task, events);
     inspectDecision(r?.routing_trace,s);
   }
@@ -224,10 +226,11 @@
     if(entries.length<2||entries.length>33||entries.some(([k,n])=>!(/^[a-z][a-z0-9_-]{0,63}$/).test(k)||!score(n))||!Object.hasOwn(d.probabilities,d.choice)||!Object.hasOwn(d.probabilities,d.route)||typeof d.reason!=='string'||d.reason.length>64||['confidence','supported','min_confidence','min_probability','min_supported'].some(k=>!score(d[k])))throw Error('Invalid decision scores');
   }
   function check(data){
-    if(data?.run?.schema_version!==1||(!['synthetic','live'].includes(data.run.scope)||(data.run.scope==='live'&&data.presentation?.profile!=='private_review'))||data.sealed!==true||!Array.isArray(data.events)||!data.events.length||data.events.length>100000)throw Error('Unsupported recording');
+    if(data?.run?.schema_version!==1||(!['synthetic','live'].includes(data.run.scope)||(data.run.scope==='live'&&!['private_review','private_execution'].includes(data.presentation?.profile)))||data.sealed!==true||!Array.isArray(data.events)||!data.events.length||data.events.length>100000)throw Error('Unsupported recording');
     let last=-1;const ids=new Set();
     data.events.forEach((e,i)=>{if(!names[e.kind]||e.seq!==i+1||!Number.isSafeInteger(e.elapsed_ns)||e.elapsed_ns<last||typeof e.task_id!=='string'||!e.data||typeof e.data!=='object')throw Error('Invalid event sequence');last=e.elapsed_ns;ids.add(e.task_id);});
     data.events.filter(e=>e.data.routing_trace!==undefined).forEach(e=>checkTrace(e.data.routing_trace));
+    for(const event of data.events){const input=event.data.generation_input_evidence;if(input!==undefined){const sha=s=>typeof s==='string'&&/^[0-9a-f]{64}$/.test(s);if(event.kind!=='response_received'||!input||Object.keys(input).sort().join(',')!=='image_sha256,reference_sha256'||!sha(input.reference_sha256)||!Array.isArray(input.image_sha256)||!input.image_sha256.length||input.image_sha256.length>8||!input.image_sha256.every(sha))throw Error('Invalid image input evidence');}}
     if(ids.size>200)throw Error('This preview supports at most 200 tasks');
     return data;
   }
@@ -244,7 +247,7 @@
       selected=tasks[0].id;
       $('scope').textContent=bundle.presentation.description;$('scope-label').textContent=bundle.run.scope==='synthetic'?'Recorded execution / synthetic providers':'Private recording / live providers';
       $('run-id').textContent=bundle.run.run_id.slice(0,8)+' · '+new Date(bundle.run.created_at).toISOString().slice(0,10);
-      $('task-total').textContent=tasks.length+(bundle.presentation.profile==='private_review'?' recorded tasks':' recorded fixtures');
+      $('task-total').textContent=tasks.length+(['private_review','private_execution'].includes(bundle.presentation.profile)?' recorded tasks':' recorded fixtures');
       $('status').textContent='Paused at the end of the run. Play or scrub to inspect the observed sequence.';
       for(const id of ['play','reset','seek'])$(id).disabled=false;
       $('play').setAttribute('aria-pressed','false');render();resize();loadLinks();

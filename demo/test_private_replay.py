@@ -1,6 +1,6 @@
 import json
 import unittest
-from private_replay import assets
+from private_replay import assets, execution_assets
 import test_review_link as fixtures
 
 
@@ -24,6 +24,18 @@ class PrivateReplayTests(unittest.TestCase):
     def test_changed_response_blocks_serving(self):
         self.record();(self.run/'private'/(self.task['task_id']+'.response.json')).write_bytes(b'{}')
         with self.assertRaises(ValueError):assets(self.corpus,self.tasks,self.run)
+
+    def test_execution_only_profile_freezes_verified_metadata_without_source_links(self):
+        self.record()
+        result=execution_assets(self.run/'recording')
+        self.assertEqual(set(result),{'replay.json'})
+        replay=json.loads(result['replay.json'][0])
+        self.assertEqual(replay['presentation']['profile'],'private_execution')
+        self.assertIn('synthetic provider responses',replay['presentation']['description'])
+        before=result['replay.json'][0]
+        (self.run/'recording/events.jsonl').write_bytes(b'changed')
+        self.assertEqual(result['replay.json'][0],before)
+        with self.assertRaises(ValueError):execution_assets(self.run/'recording')
 
 
 class OCRPrivateReplayTests(unittest.TestCase):

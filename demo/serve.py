@@ -49,10 +49,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=4174)
     parser.add_argument('--evidence-bundle', type=Path, help='Explicit private OCR bundle; verified before serving')
+    parser.add_argument('--recording', type=Path, help='Sealed private execution recording without source-review associations')
     for name in ('review-corpus','review-tasks','review-run'):
         parser.add_argument('--'+name,type=Path)
     args = parser.parse_args()
     review_args=(args.review_corpus,args.review_tasks,args.review_run)
+    if args.recording:
+        if any(review_args) or args.evidence_bundle:parser.error('recording cannot be combined with review inputs or an evidence bundle')
+        from private_replay import execution_assets
+        PRIVATE_ASSETS.update(execution_assets(args.recording))
     if any(review_args):
         if not all(review_args):parser.error('review-corpus, review-tasks and review-run are required together')
         from private_replay import assets

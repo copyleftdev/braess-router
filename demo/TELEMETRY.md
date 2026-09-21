@@ -64,9 +64,22 @@ that the reviewer received pixels.
 The local OpenRouter integration now records a real synthetic-provider image
 call through this observer and checks that the same evidence reaches analysis.
 This proves transport provenance, not that a model understood the image or
-produced a correct finding. The browser does not yet display these input hashes.
+produced a correct finding. The browser displays a separate **Reviewer input**
+fact and places reference/page hashes in Provenance only after the response is
+visible. Missing receipt evidence reads **Not reported**, even for an image source.
 Existing public export profiles reject this field until a dedicated publication
 profile exists; private packaging preserves it with the recording.
+
+To inspect a sealed execution recording without source-review associations:
+
+```sh
+python3 demo/serve.py --port 4182 --recording RUN/vision-recording
+```
+
+The server verifies and freezes the event bundle and labels it as private
+execution, preserving synthetic/live scope. This mode cannot be combined with
+review-corpus/tasks/run inputs or an evidence bundle. It does not fabricate a
+review association or claim that image input establishes understanding.
 
 ```sh
 python3 demo/run_metrics.py RUN/recording NEW_METRICS.json

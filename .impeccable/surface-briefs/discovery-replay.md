@@ -349,3 +349,64 @@ Reviewer disposition: **SHIP this UI slice after documentation; no material
 fixes required**. This update completes the bounded route-comparison
 documentation. Paid live review, media review and the broader dogfood goal
 remain unfinished; this slice supplies no evidence that those goals are complete.
+
+## Reviewer image-input receipts — 2026-09-21
+
+The existing task facts now distinguish **Reviewer input** from **Source
+modality**. A visible response with a valid receipt reports “Text + 1 image
+(receipt)” or its plural count. Missing receipts, legacy recordings and clocks
+before the response read “Not reported”; an image source alone does not prove
+that pixels reached the reviewer. The existing Provenance disclosure includes
+the submitted reference SHA-256 and ordered image/page SHA-256 values only once
+that response is visible. Rewinding removes them. Its transport-receipt note
+explicitly leaves image understanding unestablished.
+
+Malformed receipts reject the recording. The browser requires exactly the
+reference and image-hash fields, valid lowercase SHA-256 values and one to eight
+ordered image hashes, attached to a response event. This keeps malformed or
+unexpected receipt contents out of the inspector. These facts extend the
+incumbent pale evidence pane and ruled metadata layout without CSS or HTML
+changes. Archivo, monochrome hierarchy, existing disclosure behavior and
+responsive composition remain intact; `DESIGN.md` and `.impeccable/design.json`
+remain unchanged.
+
+The private loopback server's `--recording` mode verifies and freezes a sealed
+recording into the `private_execution` profile, preserving synthetic/live scope.
+It provides no source-review association and cannot be combined with review
+corpus/tasks/run inputs or an evidence bundle. The reviewed execution is an
+actual local synthetic-provider transport fixture submitting a one-pixel PNG.
+Its receipt demonstrates that transport path, not live-provider image
+understanding, semantic review or legal quality. Existing public export profiles
+reject the receipt field; this slice does not approve publication.
+
+Evidence checked for this bounded documentation pass:
+
+- Source: `demo/web/app.js`, `demo/private_replay.py`, `demo/serve.py`,
+  `demo/TELEMETRY.md` and `demo/test_image_input.cjs`, alongside `PRODUCT.md`,
+  `DESIGN.md` and the current surface brief. This documenter inspected source
+  and recorded browser results without rerunning execution or the browser.
+- Full-page [desktop, 1440px](../review/image-input-desktop.png) and
+  [mobile, 390px](../review/image-input-mobile.png), plus intentional viewport
+  [desktop detail](../review/image-input-detail-desktop.png) and
+  [mobile detail](../review/image-input-detail-mobile.png), were opened by both
+  the implementation owner and the independent finish reviewer. The mobile
+  detail shows only part of the inspector; the full-page capture supplies the
+  complete composition. These PNGs are review captures, not shipping assets.
+- [Recorded browser results](../review/image-input-browser.json) pass receipt
+  hash display, rewind clearing, legacy unknown input and malformed-receipt
+  rejection at both widths, with no horizontal overflow or page errors. The
+  test also confirms that linked findings remain hidden. Malformed variants
+  cover an unexpected field, empty image list, invalid hash and nine images;
+  these are intercepted browser fixtures rather than additional provider runs.
+- The implementation owner verified five passing private-replay tests and the
+  completed full Python suite: 126 tests passed. The supplied detector
+  result for the single `app.js` pass is `[]`; no detector suppression or design
+  refresh was introduced.
+
+Fresh reviewer disposition: **SHIP this bounded UI slice after documentation;
+no material fixes required**. The reviewer independently inspected source,
+design authority, all four captures and recorded results without a browser
+rerun. No implementation fix, rebuild or recapture was requested. This update
+completes the receipt-inspector documentation only. Live corpus/media review,
+semantic-quality evaluation, complete billing, publication and the broader
+dogfood goal remain outside this slice.

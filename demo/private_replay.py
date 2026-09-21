@@ -4,13 +4,28 @@ from recording import canonical, verify
 from review_link import link, read, parse
 
 
-def assets(corpus,tasks,run,*,inspector=None):
-    run=Path(run)
+def load_recording(directory):
+    directory=Path(directory)
     for name,maximum in [('run.json',1024*1024),('seal.json',1024*1024),('events.jsonl',32*1024*1024)]:
-        read(run/'recording'/name,maximum)
-    replay=verify(run/'recording')
+        read(directory/name,maximum)
+    replay=verify(directory)
     ids={e['task_id'] for e in replay['events']}
     if not 1<=len(ids)<=200:raise ValueError('private viewer supports 1..200 tasks')
+    return replay
+
+
+def execution_assets(directory):
+    replay=load_recording(directory)
+    scope='synthetic provider responses' if replay['run']['scope']=='synthetic' else 'live provider responses'
+    replay['presentation']={'profile':'private_execution',
+        'description':f'Private execution recording with {scope}. Input receipts describe transport; model understanding and review accuracy are not established.',
+        'approval':'private loopback inspection only','timing':'Measured client events; spatial paths are illustrative.'}
+    return {'replay.json':(canonical(replay)+b'\n','application/json')}
+
+
+def assets(corpus,tasks,run,*,inspector=None):
+    run=Path(run)
+    replay=load_recording(run/'recording')
     accepted=[e['task_id'] for e in replay['events'] if e['kind']=='task_completed' and e['data']['outcome']=='review_validated']
     inspector_document=parse(read(Path(inspector)/'manifest.json',1024*1024))['document_id'] if inspector else None
     links=[]
