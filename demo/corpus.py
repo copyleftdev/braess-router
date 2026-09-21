@@ -142,10 +142,14 @@ def locate(root, document, *, start, end, quote):
     text = raw.decode('utf-8', errors='strict')
     if type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text) or text[start:end] != quote:
         raise ValueError('unsupported finding span')
+    extra = {}
+    if document.get('representation') == 'ocr_text':
+        from ocr_evidence import location
+        extra = location(root, document, start, end)
     return {'document_id':document['document_id'], 'source_sha256':digest,
             'representation':'text_rendering', 'normalization':'identity',
             'start_character':start, 'end_character':end,
-            'start_byte':len(text[:start].encode('utf-8')), 'end_byte':len(text[:end].encode('utf-8'))}
+            'start_byte':len(text[:start].encode('utf-8')), 'end_byte':len(text[:end].encode('utf-8')), **extra}
 
 
 if __name__ == '__main__':

@@ -12,7 +12,10 @@ The validator rejects unexpected/duplicate fields, duplicate finding IDs, change
 source objects, fabricated quotes, invalid ranges and unbounded output. It returns
 verified byte/character locations and a hash of the original reviewer response.
 The source is not silently repaired, whitespace-normalized or truncated to make a
-model's answer fit. Native PDF/image/audio locations are not yet supported.
+model's answer fit. Imported OCR bundles additionally resolve quotes to original
+image pages and pixel boxes, with native-image and mapping hashes. OCR confidence
+does not establish transcription accuracy. Native PDF and audio locations are
+not yet supported.
 
 `redact(..., approved_ids=[...])` requires specific candidate IDs. It unions
 approved overlapping ranges and writes a separate UTF-8 derivative with the
@@ -21,7 +24,9 @@ response and derivative hashes. Originals are untouched. Repeated exact quotes
 remaining elsewhere are reported; approval for one span does not authorize a
 silent document-wide replacement. The derivative is marked not approved for
 publication. This does not establish complete sensitive-data coverage, redact
-native attachments or constitute a legal privilege determination.
+native attachments or constitute a legal privilege determination. For OCR input,
+it removes text only from the derived transcript; the original image pixels
+remain unchanged and must not be treated as a redacted image.
 
 ## Prepare review tasks without spending
 

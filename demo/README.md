@@ -60,7 +60,8 @@ content stays in ignored artifacts; the replay still uses synthetic fixtures.
 
 A bounded prefix of the official native archive now has a signature inventory.
 Thirteen image candidates decoded, including three multipage TIFFs; one two-page
-TIFF has local OCR with source-linked word coordinates. [Measured coverage,
+TIFF has local OCR with source-linked word coordinates. Validated OCR findings
+now carry the original image hash, page and pixel boxes. [Measured coverage,
 reproduction and limits](MEDIA.md). This is local extraction, not semantic review.
 
 ## Execute validated reviewer tasks
@@ -122,12 +123,12 @@ costs. A future film export must use the same event-driven renderer as playback.
 - Internal decision/dispatch/completion events with task correlation.
 - Conservative pricing estimates and full receipt reconciliation; shared durable
   reservations and observer dispatch gating are implemented and tested.
-- Join sampled native media to text IDs and connect OCR/vision findings to image
-  coordinates. A bounded native inventory and local OCR sample are implemented.
+- Join sampled native media to text IDs and implement vision review. A bounded
+  native inventory, local OCR and source-linked OCR findings are implemented.
 - Run the prepared real corpus under a discovery-specific semantic rubric and
   verified provider pricing; [text findings and draft redaction contracts](REVIEW.md)
   are now connected to the bounded runner.
-  Image/audio coordinates still need separate validation.
+  Native image redaction and audio coordinates still need separate implementation.
 - Public-export validation and film capture. The local synthetic replay and its
   desktop/mobile browser verification are complete for the current smoke slice;
   see the [surface brief](../.impeccable/surface-briefs/discovery-replay.md).

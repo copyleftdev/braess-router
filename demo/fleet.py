@@ -77,7 +77,7 @@ def run(corpus, tasks_path, output, *, gateway_url, budget, estimate_usd, scope,
     try:
         for task in tasks:
             recorder.append('task_queued',task['task_id'],document_id=task['document_id'],
-                            family_id=task['family_id'],modality='text')
+                            family_id=task['family_id'],modality=documents[task['document_id']].get('modality','text'))
         with ThreadPoolExecutor(max_workers=workers) as pool:
             # Input is bounded above; no recursive tasks or automatic retries.
             for result in pool.map(worker,tasks):

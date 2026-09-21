@@ -37,6 +37,9 @@ def load_text(root, document):
     raw = path.read_bytes()
     if hashlib.sha256(raw).hexdigest() != digest:
         raise ValueError('source changed')
+    if document.get('representation') == 'ocr_text':
+        from ocr_evidence import inspect
+        inspect(root, document)
     return raw.decode('utf-8', errors='strict')
 
 
@@ -137,7 +140,9 @@ def prompt(root, document, *, production_request):
     )
     result = json.dumps({'instructions':instruction, 'production_request':production_request,
                          'document_id':document['document_id'], 'source_sha256':document['source_sha256'],
-                         'evidence_text':text}, ensure_ascii=False)
+                         'evidence_text':text,
+                         'source_representation':document.get('representation','text_rendering'),
+                         'extraction_warning':'OCR may misrecognize or omit evidence; flag ambiguity.' if document.get('representation')=='ocr_text' else 'Native layout and attachments may be unavailable.'}, ensure_ascii=False)
     if len(json.dumps({'request':result}).encode()) > 16384:
         raise ValueError('review request exceeds initial gateway body bound; chunking required')
     return result

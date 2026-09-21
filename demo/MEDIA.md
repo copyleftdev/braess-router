@@ -73,14 +73,27 @@ confidence. Source-image, TSV and derived-text hashes link the artifacts. OCR
 confidence is not a calibrated legal-accuracy probability. There has been no
 semantic review of these pages and no model/API call in these stages.
 
+## Source-linked findings
+
+`ocr_evidence.import_bundle` imports the native image, derived text and mapping
+into a private, create-only corpus directory. Content hashes bind all three.
+Validation checks word coverage, page geometry and bounding boxes before writing
+a complete manifest. Failed imports can leave partial objects without a manifest.
+
+`corpus.locate` now resolves accepted OCR quotes to both text offsets and source
+page pixel boxes. Review validation verifies the native image and mapping even
+when the response contains no findings. Prompts identify OCR-derived input and
+its extraction uncertainty. The fleet records the original modality as `image`;
+the reviewer currently receives OCR text, not pixels. This does not establish
+vision-model support or OCR transcription accuracy.
+
 ## Integration still needed
 
 The native prefix begins in a different part of the archive from the existing
 40-document text sample. Join by verified native/text IDs before showing family
-context; do not imply these are the same reviewed documents. The OCR mapping is
-not yet wired into `review.locate`, which currently handles text-rendering offsets.
-A future accepted OCR finding must resolve to image-page boxes through this
-mapping and retain uncertainty about extraction errors.
+context; do not imply these are the same reviewed documents. Image-region
+coordinates are available for evidence inspection; the replay still needs the
+corresponding private image viewer.
 
 Next stages are native/text joins, OCR/vision task routing, a tested image-capable
 provider handler, source-linked evidence inspection and approved public excerpts.
