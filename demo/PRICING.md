@@ -58,8 +58,9 @@ been reconciled against these candidates.
 `pricing_quote.py` is an offline planner. Its result does not create a ledger,
 select a pilot allowance or permit dispatch. It assumes the existing direct
 TypeSafe gateway; OpenRouter's separate Decisions transport is not implemented.
-Complete billing reconciliation, runtime binding of this catalog to configuration,
-and a selected allowance remain required before the paid fleet pilot.
+A [two-task plan](PILOT.md) now binds this catalog to explicit configurations.
+Execution-time enforcement, complete billing reconciliation and a selected
+allowance remain before the paid fleet pilot.
 
 Tests cover exact decimal arithmetic, separate reasoning allowance, refusal of
 base provider slugs, unavailable endpoints, unknown charges, unsupported token

@@ -41,7 +41,8 @@ separate states. Synthetic smoke estimates are test amounts, not incurred cost.
 
 The pilot cap remains unselected. No new paid requests were made to test this
 ledger. A [dated text-pilot pricing snapshot and capacity-based quote](PRICING.md)
-now exist. Runtime binding of that catalog, modality-specific estimation,
+now exist, with [a bounded configuration plan](PILOT.md). Execution-time
+enforcement of that binding, modality-specific estimation,
 provider contract capture and complete receipt reconciliation remain before
 using this as a paid fleet controller. A pricing hash binds state to the caller's
 selected catalog; the ledger does not establish that the catalog is accurate.
