@@ -1,4 +1,4 @@
-# V1 acceptance protocol — revision 1
+# V1 acceptance protocol — revision 2
 
 This protocol is the checklist for the accepted single-server v1 milestone. It
 preserves the broader scaling goal as later work. An alpha publication, successful
@@ -17,6 +17,7 @@ this protocol require an explicit revision and review, not silent relaxation.
 | Operator deployment | Installed foreground and actual user-systemd lifecycles pass: private state, initialization refusal, SIGTERM drain, SIGKILL/restart retention, environment-file loading and cleanup. |
 | Offline maintenance | Inspection does not mutate state; quiescent migration preserves budget, counters and identities; unresolved work blocks migration; injected replacement failures retain a replayable scope and original archive. |
 | Unresolved-work recovery | A provider/handler-specific way to establish and correlate completion is implemented and tested before releasing uncertain admission. Timeouts, TTLs, EOF and process death cannot substitute for that evidence. **Open.** |
+| OpenRouter execution | Synthetic adapter and real gateway-chain checks pass; generation reservations and receipts survive restart; uncertain attempts remain charged. Live captures prove only their recorded requests. |
 | Distribution | Cargo package verification and publication dry-run pass on the candidate. Public source excludes credentials and historical artifacts. Secret scanning passes for tracked history. |
 | Release controls | Version-policy negative tests pass; protected branch requires CI; release tag matches the package and main history before approval; publishing token remains isolated to the release environment. Actual publication permission is unverified until a publication succeeds. |
 | Workload acceptance | Representative labeled inputs, expected fallback behavior, offered load and latency/error targets are recorded before evaluation. Results meet those targets on the deployment topology. **Open: workload and targets not supplied.** |
@@ -40,7 +41,7 @@ cargo publish --locked --dry-run
 ```
 
 Use new output paths. The evidence verifier checks the complete file manifest,
-ordered twelve-stage results, and saved/current source hashes. It rejects incomplete,
+ordered thirteen-stage results, and saved/current source hashes. It rejects incomplete,
 stale, altered or path-escaping bundles. Its report always separates local evidence
 validity from v1 acceptance; it does not sign provenance, independently rerun the
 commands, certify external CI identity, or establish upstream completion.

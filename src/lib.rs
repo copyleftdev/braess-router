@@ -7,6 +7,8 @@ pub mod durable_budget;
 pub mod durable_requests;
 pub mod gateway;
 pub mod ledger_http;
+pub mod local_http;
+pub mod openrouter;
 pub mod rate_limit;
 pub mod request_ledger;
 pub mod simulation;

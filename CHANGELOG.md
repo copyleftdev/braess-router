@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.5
+
+- Add a text-only OpenRouter generation adapter with explicit route/model/provider mappings.
+- Persist generation reservations and completion receipts; retain uncertain charges across restart.
+- Share bounded local HTTP connection handling between the gateway and adapter.
+
 ## 0.1.0-alpha.4
 
 - Add seven observed provider contract fixtures and offline gateway error-response checks.

@@ -9,7 +9,7 @@ import subprocess
 from validate_local import ROOT, source_paths
 
 STAGES = ('toolchain', 'metadata', 'format', 'tests', 'clippy', 'build',
-          'gateway', 'catalog', 'readiness', 'evaluator', 'deployment', 'provider_contract')
+          'gateway', 'catalog', 'readiness', 'evaluator', 'deployment', 'provider_contract', 'openrouter')
 
 
 def digest(path):
