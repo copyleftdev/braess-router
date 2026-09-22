@@ -1,0 +1,30 @@
+{
+  "bind": "127.0.0.1:8084",
+  "mode": "live",
+  "url": "https://api.fastmetal.ai/v1/chat/completions",
+  "journal_path": "/tmp/braess-fastmetal-example.jsonl",
+  "deadline_ms": 30000,
+  "max_request_bytes": 16384,
+  "max_response_bytes": 65536,
+  "admission_limit": 1,
+  "max_calls": 4,
+  "routes": {
+    "general": {
+      "model": "gpt-4.1-nano",
+      "max_tokens": 128
+    },
+    "coding": {
+      "model": "gpt-4.1-nano",
+      "max_tokens": 128
+    },
+    "reasoning": {
+      "model": "gpt-oss-20b",
+      "max_tokens": 512,
+      "reasoning": {
+        "mode": "effort",
+        "effort": "low"
+      }
+    }
+  },
+  "backend": "fastmetal"
+}

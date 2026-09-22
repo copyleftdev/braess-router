@@ -28,7 +28,7 @@ def write(path, value):
 def source_paths():
     paths = [ROOT / n for n in ('Cargo.toml', 'Cargo.lock', 'README.md', 'CONTRIBUTING.md',
                                'CHANGELOG.md', 'SECURITY.md', 'LICENSE-MIT', 'LICENSE-APACHE', '.gitignore')]
-    for directory, pattern in [('src', '*.rs'), ('scripts', '*.py'), ('scripts', '*.c'), ('config', '*.json'),
+    for directory, pattern in [('src', '*.rs'), ('src', '*.json'), ('scripts', '*.py'), ('scripts', '*.c'), ('config', '*.json'),
                                ('eval', '*.json'), ('docs', '*.md'), ('.github', '*.yml')]:
         paths.extend((ROOT / directory).rglob(pattern))
     for pattern in ('*.py', '*.html', '*.css', '*.js', '*.cjs', '*.json', '*.md', '*.txt'):
@@ -40,7 +40,7 @@ def source_paths():
 def run(output):
     output.mkdir(parents=True, exist_ok=False)
     records = []
-    env = {k: v for k, v in os.environ.items() if k not in ('TYPESAFE_API_KEY', 'OPENROUTER_API_KEY', 'API_KEY')}
+    env = {k: v for k, v in os.environ.items() if k not in ('TYPESAFE_API_KEY', 'OPENROUTER_API_KEY', 'FASTMETAL_API_KEY', 'FAST_METAL_API', 'API_KEY')}
     sources = {str(p.relative_to(ROOT)): digest(p) for p in source_paths()}
     for name in sources:
         target = output / 'source' / name
@@ -83,7 +83,7 @@ def run(output):
         stage('clippy', ['cargo', 'clippy', '--locked', '--offline', '--all-targets', '--', '-D', 'warnings'])
         stage('build', ['cargo', 'build', '--locked', '--offline', '--release', '--bins'], timeout=1800)
         binaries = {str(target / n): digest(target / n) for n in
-                    ('braess-router', 'braess-eval', 'braess-budget-init', 'braess-journal-init', 'braess-journal-compact', 'braess-openrouter')}
+                    ('braess-router', 'braess-eval', 'braess-budget-init', 'braess-journal-init', 'braess-journal-compact', 'braess-openrouter', 'braess-fastmetal')}
         write(output / 'binary-hashes.json', binaries)
         for name, script, binary in [('gateway', 'gateway_e2e.py', 'braess-router'),
                                      ('catalog', 'gateway_catalog_e2e.py', 'braess-router'),
@@ -91,7 +91,8 @@ def run(output):
                                      ('evaluator', 'custom_eval_e2e.py', 'braess-eval'),
                                      ('deployment', 'deployment_e2e.py', 'braess-router'),
                                      ('provider_contract', 'provider_contract_e2e.py', 'braess-router'),
-                                     ('openrouter', 'openrouter_e2e.py', 'braess-openrouter')]:
+                                     ('openrouter', 'openrouter_e2e.py', 'braess-openrouter'),
+                                     ('fastmetal', 'fastmetal_e2e.py', 'braess-fastmetal')]:
             stage(name, [sys.executable, str(ROOT / 'scripts' / script), str(output / name),
                          '--binary', str(target / binary)])
         actual = {str(p.relative_to(ROOT)): digest(p) for p in source_paths()}

@@ -1,5 +1,5 @@
 //! Companion loopback handler, with explicit create-only state initialization.
-use braess_router::openrouter::{Adapter, Config, Mode, server};
+use braess_router::fastmetal::{Adapter, Config, Mode, server};
 use std::io::Read;
 fn run() -> Result<(), &'static str> {
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -7,7 +7,7 @@ fn run() -> Result<(), &'static str> {
         || args[0] != "--config"
         || (args.len() == 3 && args[2] != "--init" && args[2] != "--inspect")
     {
-        return Err("usage: braess-openrouter --config PATH [--init|--inspect]");
+        return Err("usage: braess-fastmetal --config PATH [--init|--inspect]");
     }
     let mut bytes = Vec::new();
     std::fs::File::open(&args[1])
@@ -20,8 +20,8 @@ fn run() -> Result<(), &'static str> {
     }
     let config: Config = serde_json::from_slice(&bytes).map_err(|_| "invalid_config")?;
     config.validate()?;
-    if config.backend != braess_router::generation::Backend::Openrouter {
-        return Err("openrouter_backend_required");
+    if config.backend != braess_router::generation::Backend::Fastmetal {
+        return Err("fastmetal_backend_required");
     }
     if args.get(2).is_some_and(|a| a == "--init") {
         return Adapter::initialize(&config);
@@ -31,7 +31,7 @@ fn run() -> Result<(), &'static str> {
         return Ok(());
     }
     let key = if config.mode == Mode::Live {
-        std::env::var("OPENROUTER_API_KEY").ok()
+        std::env::var("FASTMETAL_API_KEY").ok()
     } else {
         None
     };

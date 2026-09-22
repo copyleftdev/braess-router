@@ -1,4 +1,4 @@
-//! Bounded, non-streaming OpenRouter execution. Provider policy is explicit;
+//! Bounded, non-streaming generation for OpenRouter and FastMetal.
 //! generation reservations and receipts are separate from Jev accounting.
 mod journal;
 mod vision;
@@ -17,6 +17,49 @@ use std::{
 };
 
 pub const LIVE_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
+/// Explicit wire dialect; omitted defaults preserve existing OpenRouter journals.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Backend {
+    #[default]
+    Openrouter,
+    Fastmetal,
+}
+impl Backend {
+    fn is_openrouter(&self) -> bool {
+        *self == Self::Openrouter
+    }
+    pub fn live_url(self) -> &'static str {
+        match self {
+            Self::Openrouter => LIVE_URL,
+            Self::Fastmetal => crate::fastmetal::CHAT_URL,
+        }
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Reasoning {
+    Disabled,
+    Effort { effort: Effort },
+    Budget { max_tokens: u32 },
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Effort {
+    None,
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputFormat {
+    Text,
+    JsonObject,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
@@ -27,7 +70,12 @@ pub enum Mode {
 #[serde(deny_unknown_fields)]
 pub struct Route {
     pub model: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub provider: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<Reasoning>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_format: Option<OutputFormat>,
     pub max_tokens: u32,
     #[serde(default, skip_serializing_if = "InputMode::is_text")]
     pub input_mode: InputMode,
@@ -47,6 +95,8 @@ impl InputMode {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    #[serde(default, skip_serializing_if = "Backend::is_openrouter")]
+    pub backend: Backend,
     pub bind: SocketAddr,
     pub mode: Mode,
     pub url: String,
@@ -88,7 +138,7 @@ impl Config {
             || !(1..=64).contains(&self.admission_limit)
             || !(1..=100_000).contains(&self.max_calls)
             || !(1..=32).contains(&self.routes.len())
-            || (self.mode == Mode::Live && self.url != LIVE_URL)
+            || (self.mode == Mode::Live && self.url != self.backend.live_url())
             || (self.mode == Mode::Mock && !mock_url)
         {
             return Err("invalid_openrouter_config");
@@ -97,12 +147,22 @@ impl Config {
             if !valid_route_label(name)
                 || name == "fallback"
                 || !label(&route.model, 256)
-                || !route.model.contains('/')
-                || route.model.starts_with(['~', '/'])
-                || route.model.starts_with("openrouter/")
                 || route.model.chars().any(char::is_whitespace)
-                || !label(&route.provider, 128)
-                || route.provider.chars().any(char::is_whitespace)
+                || match self.backend {
+                    Backend::Openrouter => {
+                        !route.model.contains('/')
+                            || route.model.starts_with(['~', '/'])
+                            || route.model.starts_with("openrouter/")
+                            || !label(&route.provider, 128)
+                            || route.provider.chars().any(char::is_whitespace)
+                            || route.reasoning.is_some()
+                            || route.output_format.is_some()
+                    }
+                    Backend::Fastmetal => {
+                        !crate::fastmetal::fixed_model(&route.model) || !route.provider.is_empty()
+                    }
+                }
+                || matches!(route.reasoning, Some(Reasoning::Budget { max_tokens }) if max_tokens == 0 || max_tokens > route.max_tokens)
                 || !(1..=32_768).contains(&route.max_tokens)
             {
                 return Err("invalid_openrouter_route");
@@ -145,6 +205,12 @@ pub struct Usage {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Receipt {
+    #[serde(default, skip_serializing_if = "Backend::is_openrouter")]
+    pub backend: Backend,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reported_cost_jpy: Option<serde_json::Number>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u64>,
     pub attempt_id: u64,
     pub route: String,
     pub requested_model: String,
@@ -158,7 +224,17 @@ pub struct Receipt {
 }
 impl Receipt {
     fn valid(&self) -> bool {
-        label(&self.model, 256)
+        (self.backend != Backend::Fastmetal
+            || (self.usage.cost.is_none() && self.model == self.requested_model))
+            && (self.backend != Backend::Openrouter || self.reported_cost_jpy.is_none())
+            && self
+                .reported_cost_jpy
+                .as_ref()
+                .is_none_or(|n| n.as_f64().is_some_and(|v| v.is_finite() && v >= 0.0))
+            && self
+                .reasoning_tokens
+                .is_none_or(|n| n <= self.usage.completion_tokens)
+            && label(&self.model, 256)
             && self
                 .input_evidence
                 .as_ref()
@@ -234,6 +310,9 @@ fn decode(bytes: &[u8], id: u64, route: &str, requested: &str) -> Result<Generat
         return Err(invalid());
     }
     let receipt = Receipt {
+        backend: Backend::Openrouter,
+        reported_cost_jpy: None,
+        reasoning_tokens: None,
         attempt_id: id,
         route: route.into(),
         requested_model: requested.into(),
@@ -256,6 +335,59 @@ fn decode(bytes: &[u8], id: u64, route: &str, requested: &str) -> Result<Generat
         answer: choice.message.content,
         execution: receipt,
     })
+}
+
+fn decode_fastmetal(
+    bytes: &[u8],
+    id: u64,
+    route: &str,
+    requested: &str,
+    reported_cost: Option<serde_json::Number>,
+) -> Result<Generation, Failure> {
+    let mut output = decode(bytes, id, route, requested)?;
+    if output.execution.model != requested || output.answer.trim().is_empty() {
+        return Err(fail(502, "fastmetal_invalid_response"));
+    }
+    output.execution.backend = Backend::Fastmetal;
+    output.execution.usage.cost = None;
+    output.execution.reported_cost_jpy = reported_cost;
+    let value: Value =
+        serde_json::from_slice(bytes).map_err(|_| fail(502, "fastmetal_invalid_response"))?;
+    if let Some(n) = value.pointer("/usage/completion_tokens_details/reasoning_tokens") {
+        output.execution.reasoning_tokens = Some(
+            n.as_u64()
+                .ok_or_else(|| fail(502, "fastmetal_invalid_response"))?,
+        );
+    }
+    if !output.execution.valid() {
+        return Err(fail(502, "fastmetal_invalid_response"));
+    }
+    Ok(output)
+}
+
+fn request_body(backend: Backend, route: &Route, content: Value) -> Value {
+    let mut body = json!({"model":route.model,"messages":[{"role":"user","content":content}],"stream":false,"max_tokens":route.max_tokens});
+    match backend {
+        Backend::Openrouter => {
+            body["provider"] = json!({"only":[route.provider],"order":[route.provider],"allow_fallbacks":false,"require_parameters":true})
+        }
+        Backend::Fastmetal => {
+            if let Some(reasoning) = &route.reasoning {
+                body["reasoning"] = match reasoning {
+                    Reasoning::Disabled => json!({"enabled":false}),
+                    Reasoning::Effort { effort } => json!({"effort":effort}),
+                    Reasoning::Budget { max_tokens } => json!({"max_tokens":max_tokens}),
+                };
+            }
+            if let Some(format) = &route.output_format {
+                body["response_format"] = match format {
+                    OutputFormat::Text => json!({"type":"text"}),
+                    OutputFormat::JsonObject => json!({"type":"json_object"}),
+                };
+            }
+        }
+    }
+    body
 }
 
 pub struct Adapter {
@@ -318,6 +450,22 @@ impl Adapter {
     }
     /// One HTTP attempt; failed/aborted dispatch remains charged until proven complete.
     pub async fn execute(&self, input: Request) -> Result<Generation, Failure> {
+        self.execute_inner(input).await.map_err(|mut e| {
+            if self.config.backend == Backend::Fastmetal {
+                e.code = match e.code {
+                    "openrouter_invalid_response" => "fastmetal_invalid_response",
+                    "openrouter_transport_error" => "fastmetal_transport_error",
+                    "openrouter_http_error" => "fastmetal_http_error",
+                    "openrouter_response_too_large" => "fastmetal_response_too_large",
+                    "openrouter_request_too_large" => "fastmetal_request_too_large",
+                    "openrouter_deadline_exceeded" => "fastmetal_deadline_exceeded",
+                    other => other,
+                };
+            }
+            e
+        })
+    }
+    async fn execute_inner(&self, input: Request) -> Result<Generation, Failure> {
         if input.request.trim().is_empty() || input.request.len() > self.config.max_request_bytes {
             return Err(fail(400, "invalid_request"));
         }
@@ -337,8 +485,7 @@ impl Adapter {
                 (content, Some(evidence))
             }
         };
-        let body = json!({"model":route.model,"messages":[{"role":"user","content":content}],"stream":false,"max_tokens":route.max_tokens,
-            "provider":{"only":[route.provider],"order":[route.provider],"allow_fallbacks":false,"require_parameters":true}});
+        let body = request_body(self.config.backend, &route, content);
         let body = serde_json::to_vec(&body).map_err(|_| fail(400, "invalid_request"))?;
         if body.len() > vision::MAX_OUTBOUND {
             return Err(fail(400, "openrouter_request_too_large"));
@@ -377,6 +524,21 @@ impl Adapter {
                 {
                     return Err(fail(502, "openrouter_response_too_large"));
                 }
+                let reported_cost = if self.config.backend == Backend::Fastmetal {
+                    response
+                        .headers()
+                        .get("x-litellm-response-cost")
+                        .map(|h| {
+                            h.to_str()
+                                .ok()
+                                .and_then(|v| v.parse::<serde_json::Number>().ok())
+                                .filter(|n| n.as_f64().is_some_and(|v| v.is_finite() && v >= 0.0))
+                                .ok_or_else(|| fail(502, "fastmetal_invalid_cost"))
+                        })
+                        .transpose()?
+                } else {
+                    None
+                };
                 let mut bytes = Vec::new();
                 while let Some(chunk) = response
                     .chunk()
@@ -388,7 +550,18 @@ impl Adapter {
                     }
                     bytes.extend_from_slice(&chunk);
                 }
-                decode(&bytes, id, &input.route, &route.model)
+                let output = match self.config.backend {
+                    Backend::Openrouter => decode(&bytes, id, &input.route, &route.model)?,
+                    Backend::Fastmetal => {
+                        decode_fastmetal(&bytes, id, &input.route, &route.model, reported_cost)?
+                    }
+                };
+                if matches!(route.output_format, Some(OutputFormat::JsonObject))
+                    && !serde_json::from_str::<Value>(&output.answer).is_ok_and(|v| v.is_object())
+                {
+                    return Err(fail(502, "fastmetal_invalid_response"));
+                }
+                Ok(output)
             })
             .await
             .map_err(|_| fail(504, "openrouter_deadline_exceeded"))??;

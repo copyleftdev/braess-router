@@ -1,0 +1,25 @@
+{
+  "bind": "127.0.0.1:8080",
+  "mode": "live",
+  "jev_url": "https://api.fastmetal.ai/openrouter/decisions/jev-1-13",
+  "rubric_path": "eval/fastmetal-rubric.json",
+  "deadline_ms": 10000,
+  "max_request_bytes": 16384,
+  "max_response_bytes": 65536,
+  "admission_limit": 2,
+  "tracking_limit": 128,
+  "uncertainty_ttl_ms": 1000,
+  "max_jev_calls": 4,
+  "handlers": {
+    "general": [
+      "http://127.0.0.1:8084/generate/general"
+    ],
+    "coding": [
+      "http://127.0.0.1:8084/generate/coding"
+    ],
+    "reasoning": [
+      "http://127.0.0.1:8084/generate/reasoning"
+    ]
+  },
+  "jev_backend": "fastmetal"
+}

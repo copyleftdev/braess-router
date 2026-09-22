@@ -185,7 +185,7 @@ fn run() -> Result<(), String> {
         .map_err(|_| "runtime_failed")?;
     runtime.block_on(async move {
         let key = if config.mode == Mode::Live {
-            std::env::var("TYPESAFE_API_KEY").ok()
+            std::env::var(config.jev_backend.key_env()).ok()
         } else {
             None
         };

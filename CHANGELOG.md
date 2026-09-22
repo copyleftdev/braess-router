@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.8
+
+- Add a bounded FastMetal generation adapter with fixed model routes, reasoning settings and separate JPY receipts.
+- Support FastMetal-hosted Jev decisions with an encoded request size bound and pinned response model.
+- Share the existing durable generation engine and image-reference validation with OpenRouter.
+
 ## 0.1.0-alpha.7
 
 - Add explicit image-reference OpenRouter routes backed by bounded, hash-verified local PNG bundles.

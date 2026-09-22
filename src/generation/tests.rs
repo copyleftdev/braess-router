@@ -23,6 +23,7 @@ impl Drop for Temp {
 }
 fn config(p: &Temp) -> Config {
     Config {
+        backend: Backend::Openrouter,
         bind: "127.0.0.1:8089".parse().unwrap(),
         mode: Mode::Mock,
         url: "http://127.0.0.1:8090/chat/completions".into(),
@@ -38,6 +39,8 @@ fn config(p: &Temp) -> Config {
             Route {
                 model: "fixture/code-v1".into(),
                 provider: "fixture".into(),
+                reasoning: None,
+                output_format: None,
                 max_tokens: 32,
                 input_mode: InputMode::Text,
             },
@@ -256,4 +259,96 @@ fn image_receipt_rejects_unbounded_or_invalid_hash_evidence() {
     assert!(!r.valid());
     r.input_evidence.as_mut().unwrap().image_sha256 = vec!["bad".into()];
     assert!(!r.valid());
+}
+
+#[test]
+fn fastmetal_observed_contracts_keep_currency_and_reasoning_separate() {
+    for bytes in [
+        include_bytes!("fixtures/fastmetal-text.json").as_slice(),
+        include_bytes!("fixtures/fastmetal-reasoning.json").as_slice(),
+        include_bytes!("fixtures/fastmetal-vision.json").as_slice(),
+        include_bytes!("fixtures/fastmetal-structured.json").as_slice(),
+    ] {
+        let value: Value = serde_json::from_slice(bytes).unwrap();
+        let model = value["model"].as_str().unwrap();
+        let output = decode_fastmetal(
+            bytes,
+            1,
+            "general",
+            model,
+            Some(serde_json::Number::from_f64(0.1).unwrap()),
+        )
+        .unwrap();
+        assert_eq!(output.execution.backend, Backend::Fastmetal);
+        assert!(output.execution.usage.cost.is_none());
+        assert_eq!(
+            output
+                .execution
+                .reported_cost_jpy
+                .as_ref()
+                .unwrap()
+                .as_f64(),
+            Some(0.1)
+        );
+        assert!(
+            !serde_json::to_string(&output)
+                .unwrap()
+                .contains("reasoning_content")
+        );
+        assert!(decode_fastmetal(bytes, 1, "general", "wrong-model", None).is_err());
+    }
+    assert!(
+        decode_fastmetal(
+            include_bytes!("fixtures/fastmetal-tool.json"),
+            1,
+            "general",
+            "gpt-4.1-nano",
+            None
+        )
+        .is_err()
+    );
+    for mutation in 0..4 {
+        let mut v: Value =
+            serde_json::from_slice(include_bytes!("fixtures/fastmetal-text.json")).unwrap();
+        match mutation {
+            0 => v["usage"]["completion_tokens_details"]["reasoning_tokens"] = json!(999),
+            1 => v["usage"]["completion_tokens_details"]["reasoning_tokens"] = json!(-1),
+            2 => v["choices"][0]["message"]["content"] = json!(" "),
+            _ => v["choices"][0]["message"]["content"] = Value::Null,
+        }
+        assert!(
+            decode_fastmetal(
+                &serde_json::to_vec(&v).unwrap(),
+                1,
+                "general",
+                "gpt-4.1-nano",
+                None
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn fastmetal_fixed_routes_and_wire_settings() {
+    let temp = Temp::new();
+    let mut c = config(&temp);
+    c.backend = Backend::Fastmetal;
+    let route = c.routes.get_mut("coding").unwrap();
+    route.model = "gpt-oss-20b".into();
+    route.provider.clear();
+    route.reasoning = Some(Reasoning::Effort {
+        effort: Effort::Low,
+    });
+    route.output_format = Some(OutputFormat::JsonObject);
+    let body = request_body(Backend::Fastmetal, route, json!("Return JSON"));
+    assert_eq!(body["reasoning"], json!({"effort":"low"}));
+    assert_eq!(body["response_format"], json!({"type":"json_object"}));
+    assert!(body.get("provider").is_none());
+    assert_eq!(body["stream"], false);
+    assert!(c.validate().is_ok());
+    for bad in ["auto", "random-free", "provider/model", "", "../model"] {
+        c.routes.get_mut("coding").unwrap().model = bad.into();
+        assert!(c.validate().is_err(), "{bad}");
+    }
 }
