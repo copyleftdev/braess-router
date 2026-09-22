@@ -2,6 +2,10 @@
 
 ## 0.1.0-alpha.8
 
+- Give the durable catalog correctness fixture a two-second deadline; retain the dedicated short-deadline failure tests.
+
+- Update the optional image decoder to Pillow 12.3.0, addressing the reported 12.1.1 dependency advisories.
+
 - Add a bounded, read-only MCP discovery companion with private snapshots, explicit JPY pricing and no paid tool calls.
 - Verify both FastMetal companions in CI and include their stages and fixtures in sealed validation evidence.
 
