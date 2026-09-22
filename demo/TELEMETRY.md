@@ -127,3 +127,25 @@ against `run_metrics.py` output by `test_route_comparison.cjs`, using the saved
 four-task discovery fixture. The browser test requires that fixture and its
 `route-metrics-v2.json` artifact; it intercepts replay data on the local preview
 at port 4180 and never invokes a provider.
+
+## Candidate branches and the policy gate
+
+The routing instrument now takes its route catalog from recorded Jev probability
+keys as well as returned outcomes. A dashed branch is a candidate, not a sent
+reviewer request. The selected task's preferred branch is emphasized; a crossed
+endpoint marks a preference held by the gate. The solid path identifies the
+recorded outcome. A task selector sits beside the instrument, and the preference,
+policy gate and final outcome are stated directly below it.
+
+Catalog branches remain visible while scrubbing; they describe routes found in
+the run, not future decisions for a task. Scores, preferences, gate results and
+outcome emphasis appear only with that task's observed response. Uncertain tasks
+remain on the unconfirmed outcome; deferred tasks have no outgoing outcome.
+This is a decision diagram, not evidence of fan-out, multiple reviewer calls or
+an internal dispatch timestamp. Existing gateway timings stay separate.
+
+The live pilot now visibly distinguishes its standard-review preference from its
+deep-review preference even though both end in local fallback. Its frozen
+branching replay package preserves that evidence without new provider calls.
+Desktop/mobile browser checks cover both choices, all three catalog branches,
+rewind clearing, uncertain/deferred regressions and horizontal overflow.

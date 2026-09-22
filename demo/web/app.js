@@ -32,10 +32,19 @@
   function draw(){
     ctx.clearRect(0,0,width,height);
     if(!bundle)return;
-    const cx=width*.43,cy=height*.47,r=width<500?43:70,end=width*(width<500?.71:.79);
-    ctx.strokeStyle='#303030';ctx.lineWidth=1;
-    function path(y){ctx.beginPath();ctx.moveTo(cx,cy);ctx.bezierCurveTo(cx+width*.17,cy,end-width*.1,y,end,y);ctx.stroke();}
-    lanes.forEach((lane,i)=>{const y=height*(.12+i*.76/Math.max(1,lanes.length-1));path(y);ctx.beginPath();ctx.arc(end,y,3,0,Math.PI*2);ctx.stroke();});
+    const compact=width<600,cx=width*.35,cy=height*.5,r=compact?34:62,end=width*(compact?.66:.76);
+    const laneY=i=>height*(lanes.length===1?.5:.14+i*.72/(lanes.length-1));
+    const active=tasks.find(t=>t.id===selected),decision=active?response(active)?.routing_trace?.decision:null;
+    function path(y){ctx.beginPath();ctx.moveTo(cx,cy);ctx.bezierCurveTo(cx+width*.16,cy,end-width*.12,y,end,y);ctx.stroke();}
+    lanes.forEach((lane,i)=>{
+      const preferred=decision?.choice===lane;
+      ctx.strokeStyle=preferred?'#b8b8b8':'#505050';ctx.lineWidth=preferred?1.5:1;
+      ctx.setLineDash([4,6]);path(laneY(i));ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(end,laneY(i),preferred?5:3,0,Math.PI*2);ctx.stroke();
+      if(preferred&&decision.route!==decision.choice){
+        ctx.beginPath();ctx.moveTo(end-5,laneY(i)-5);ctx.lineTo(end+5,laneY(i)+5);ctx.moveTo(end+5,laneY(i)-5);ctx.lineTo(end-5,laneY(i)+5);ctx.stroke();
+      }
+    });
     tasks.forEach((task,i)=>{
       const events=visible(task);if(!events.length)return;
       const y=height*(.19+i*.62/Math.max(1,tasks.length-1));
@@ -43,14 +52,14 @@
       ctx.beginPath();ctx.moveTo(width*.10,y);ctx.bezierCurveTo(width*.24,y,cx-width*.12,cy,cx,cy);ctx.stroke();
       const route=routeOf(task),target=lanes.indexOf(route),started=events.find(e=>e.kind==='request_started');
       let x=width*.10,py=y;
-      if(target>=0){x=end;py=height*(.12+target*.76/Math.max(1,lanes.length-1))+(i%3-1)*8;if(task.id===selected){ctx.strokeStyle='#aaa';path(py);}}
+      if(target>=0){x=end;py=laneY(target)+(i%3-1)*8;if(task.id===selected){ctx.strokeStyle='#f5f5f2';ctx.lineWidth=2;ctx.setLineDash([]);path(laneY(target));ctx.lineWidth=1;}}
       else if(started){const completed=task.events.find(e=>e.kind==='response_received'||e.kind==='task_uncertain');const stop=completed?.elapsed_ns||duration;const t=Math.min(1,Math.max(0,(clock-started.elapsed_ns)/Math.max(1,stop-started.elapsed_ns)));x=width*.10+(cx-width*.10)*t;py=y+(cy-y)*t;}
       ctx.strokeStyle='#f5f5f2';ctx.fillStyle=task.id===selected?'#fff':'#bbb';ctx.beginPath();
       if(state(task)==='task_uncertain'){ctx.moveTo(x,py-5);ctx.lineTo(x+5,py);ctx.lineTo(x,py+5);ctx.lineTo(x-5,py);ctx.closePath();ctx.stroke();}
       else if(state(task)==='task_deferred'){ctx.rect(x-4,py-4,8,8);ctx.stroke();}
       else{ctx.arc(x,py,task.id===selected?4:2.5,0,Math.PI*2);ctx.fill();}
     });
-    ctx.fillStyle='#080808';ctx.strokeStyle='#555';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.setLineDash([]);ctx.lineWidth=1;ctx.fillStyle='#080808';ctx.strokeStyle='#555';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
     ctx.strokeStyle='#272727';ctx.beginPath();ctx.arc(cx,cy,r+6,0,Math.PI*2);ctx.stroke();
     for(let i=0;i<36;i++){const a=i*Math.PI/18;ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*(r+12),cy+Math.sin(a)*(r+12));ctx.lineTo(cx+Math.cos(a)*(r+15),cy+Math.sin(a)*(r+15));ctx.stroke();}
   }
@@ -102,7 +111,23 @@
     }
     $('completed').textContent=completed;$('uncertain').textContent=uncertain;$('pending').textContent=pending;$('deferred').textContent=deferred;
     $('event-count').textContent=bundle.events.filter(e=>e.elapsed_ns<=clock).length+' / '+bundle.events.length+' events';
-    compareRoutes();inspect();draw();
+    compareRoutes();inspect();inspectBranches();draw();
+  }
+  let branchKey='';
+  function inspectBranches(){
+    const task=tasks.find(t=>t.id===selected),events=task?visible(task):[],r=task?response(task):null,d=r?.routing_trace?.decision;
+    const key=selected+':'+(events.at(-1)?.seq||0);if(key===branchKey)return;branchKey=key;
+    $('flow-task').value=selected;
+    for(const [i,lane] of lanes.entries()){
+      const label=$('lanes').children[i],preferred=d?.choice===lane,returned=task?routeOf(task)===lane:false;
+      label.dataset.preferred=String(preferred);label.dataset.returned=String(returned);
+      const score=d&&Object.hasOwn(d.probabilities,lane)?(d.probabilities[lane]*100).toFixed(0)+'% · ':'';
+      label.querySelector('span').textContent=returned?(lane==='fallback'?'Local fallback':lane==='uncertain'?'Unconfirmed outcome':'Returned route'):preferred?score+'Preferred · gate held':d&&Object.hasOwn(d.probabilities,lane)?score+'Not selected':'Run catalog';
+    }
+    $('branch-choice').textContent=d?d.choice.replaceAll('_',' '):'Not observed yet';
+    $('branch-gate').textContent=d?(d.choice!==d.route?'Held · '+d.reason.replaceAll('_',' '):'Passed · '+d.reason.replaceAll('_',' ')):'Not observed yet';
+    $('branch-outcome').textContent=state(task)==='task_uncertain'?'Unconfirmed · task remains uncertain':r?.route==='fallback'?'Local fallback · no reviewer dispatch':r?.route?r.route.replaceAll('_',' '):state(task)==='task_deferred'?'Deferred before dispatch':'Not observed yet';
+    $('branch-context').textContent=d&&d.choice!==d.route?`Jev preferred ${d.choice.replaceAll('_',' ')}. Confidence ${(d.confidence*100).toFixed(0)}% / ${(d.min_confidence*100).toFixed(0)}% required; route probability ${(d.probabilities[d.choice]*100).toFixed(0)}% / ${(d.min_probability*100).toFixed(0)}% required. Braess returned ${d.route.replaceAll('_',' ')}.`:d?'The preferred route passed the recorded gate. A returned route does not establish reviewer accuracy.':'Select a task and advance to its response to inspect the recorded choice and gate. Branches show the route catalog found in this recording, not future task decisions.';
   }
   function inspect(){
     const task=tasks.find(t=>t.id===selected);if(!task)return;
@@ -267,10 +292,12 @@
       const body=await result.text();if(body.length>32*1024*1024)throw Error('Recording too large');
       bundle=check(JSON.parse(body));duration=Math.max(1,bundle.events.at(-1).elapsed_ns);clock=duration;
       for(const e of bundle.events){let task=tasks.find(t=>t.id===e.task_id);if(!task){task={id:e.task_id,document:e.data.document_id||e.task_id,events:[]};tasks.push(task);}task.events.push(e);}
-      lanes=[...new Set(bundle.events.filter(e=>e.kind==='response_received'&&e.data.route).map(e=>e.data.route))];
-      if(bundle.events.some(e=>e.kind==='task_uncertain'))lanes.push('uncertain');
-      $('lanes').replaceChildren(...lanes.map((name,i)=>{const label=element('div',name==='uncertain'?'Uncertain':name[0].toUpperCase()+name.slice(1).replaceAll('_',' '),'lane');label.style.top=(12+i*76/Math.max(1,lanes.length-1))+'%';label.append(element('span',name==='uncertain'?'Not confirmed':name==='fallback'?'Local response':'Returned route'));return label;}));
+      lanes=[...new Set(bundle.events.filter(e=>e.kind==='response_received').flatMap(e=>[...Object.keys(e.data.routing_trace?.decision?.probabilities||{}),...(e.data.route?[e.data.route]:[])]))].sort((a,b)=>(a==='fallback')-(b==='fallback')||a.localeCompare(b));
+      if(bundle.events.some(e=>e.kind==='task_uncertain')&&!lanes.includes('uncertain'))lanes.push('uncertain');
+      document.querySelector('.stage').style.height=Math.max(380,lanes.length*88)+'px';
+      $('lanes').replaceChildren(...lanes.map((name,i)=>{const label=element('div',name==='uncertain'?'Uncertain':name[0].toUpperCase()+name.slice(1).replaceAll('_',' '),'lane');label.style.top=(lanes.length===1?50:14+i*72/Math.max(1,lanes.length-1))+'%';label.append(element('span',name==='uncertain'?'Not confirmed':name==='fallback'?'Local response':'Returned route'));return label;}));
       for(const task of tasks){const button=element('button',undefined,'task-row');button.type='button';button.append(element('span',undefined,'signal'));const label=element('span',task.document);label.append(element('small',''));button.append(label,element('span','—','row-time'));button.addEventListener('click',()=>{selected=task.id;render();});task.button=button;$('tasks').append(button);}
+      $('flow-task').replaceChildren(...tasks.map((task,i)=>{const option=element('option',`Task ${i+1} · ${task.events[0].data.modality||'unknown'}`);option.value=task.id;return option;}));
       selected=tasks[0].id;
       $('scope').textContent=bundle.presentation.description;$('scope-label').textContent=bundle.run.scope==='synthetic'?'Recorded execution / synthetic providers':'Private recording / live providers';
       $('run-id').textContent=bundle.run.run_id.slice(0,8)+' · '+new Date(bundle.run.created_at).toISOString().slice(0,10);
@@ -280,6 +307,7 @@
       $('play').setAttribute('aria-pressed','false');render();resize();loadLinks();loadImageLink();
     }catch(error){$('scope-label').textContent='Recording unavailable';$('scope').textContent='The recording could not be loaded.';$('status').textContent='Unable to load a supported recording. Restore replay.json from the verified exporter and reload.';}
   }
+  $('flow-task').addEventListener('change',()=>{selected=$('flow-task').value;render();});
   $('play').addEventListener('click',()=>setPlaying(!playing));
   $('reset').addEventListener('click',()=>{setPlaying(false);clock=0;render();$('status').textContent='At the start. No task events have occurred.';});
   $('seek').addEventListener('input',()=>{const position=Number($('seek').value);setPlaying(false);clock=duration*position/1000;render();$('status').textContent='Paused at '+ms(clock)+'.';});

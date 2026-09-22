@@ -486,3 +486,63 @@ submitted-page navigation documentation only. It establishes pixel identity
 and transport association, not image understanding, semantic or legal quality.
 Live-quality evaluation, complete billing, a paid pilot and the final film
 remain unfinished; the broader goal is not complete.
+
+## Candidate branches and recorded outcomes — 2026-09-21
+
+The user identified that the one-to-one diagram hid routing alternatives. The
+instrument now builds its catalog from recorded probability keys and actual
+outcomes. Dashed paths show candidates, a brighter path marks the selected
+task's preference, a crossed endpoint marks a preference held by the policy
+gate, and a solid path shows the recorded outcome. A task selector above the
+diagram and a ruled preference/gate/outcome narrative below it expose why
+different preferences can end in the same fallback. Confidence and route
+probability are shown against their recorded thresholds.
+
+The catalog remains visible before responses and is explicitly labeled as
+routes found in the run, not future task decisions. Task-specific preferences,
+scores and gate details appear only with the observed response and clear on
+rewind. Uncertain outcomes remain unconfirmed; deferred tasks have no outgoing
+outcome. The diagram does not establish fan-out, extra reviewer dispatches or
+internal dispatch timestamps. Gateway timing remains separate.
+
+Archivo, the monochrome canvas, fine rules and flat composition continue the
+incumbent world. The three-column decision narrative becomes stacked label/value
+rows below 600px; the task selector wraps and lane labels remain beside the
+diagram. These are local surface treatments. `DESIGN.md` and
+`.impeccable/design.json` remain unchanged, and no new shipping assets were added.
+
+Evidence checked for this bounded documentation pass:
+
+- Source: `demo/web/app.js`, `index.html`, `style.css`,
+  `demo/test_branches.cjs` and the candidate-branches section of
+  `demo/TELEMETRY.md`, alongside product, design and existing surface authority.
+  This documenter read source and recorded results without rerunning the browser.
+- [Recorded browser results](../review/branches-browser.json) pass at 1440px
+  and 390px: three catalog branches, distinct selected preferences, visible gate
+  redirection, rewind clearing, no horizontal overflow and no page errors. The
+  test also asserts uncertain/deferred behavior using an intercepted saved
+  fixture; these assertions do not represent additional live executions.
+- Four intentional instrument viewport captures, each 1100px tall, were opened
+  by the implementation owner and fresh finish reviewer:
+  [desktop task 1](../review/branches-desktop-1.png),
+  [desktop task 2](../review/branches-desktop-2.png),
+  [mobile task 1](../review/branches-mobile-1.png) and
+  [mobile task 2](../review/branches-mobile-2.png). They are focused instrument
+  views, not full-page review captures.
+- The supplied live-pilot evidence contains two actual decisions: standard
+  review at 77% route probability and 65% confidence, and deep review at 64%
+  route probability and 46% confidence. Both returned local fallback, with
+  zero generation calls. The owner verified the frozen
+  `artifacts/live-pilot-branches-v2` package and preview on port 4187. This
+  extension made no new paid calls. The single supplied `app.js` detector pass
+  returned `[]` before the nonvisual uncertainty-summary correction and was
+  not repeated.
+
+Fresh reviewer `branching_finish_reviewer` disposition: **SHIP this bounded
+fix after documentation; no material fixes required**. The reviewer inspected
+source, all four final captures and recorded results without an independent
+browser run, and requested no implementation fix, rebuild or recapture. This
+entry completes the branch-visualization documentation only. The earlier
+paid-pilot-pending status is superseded by the two live routing decisions above;
+live generation quality and the full film remain unestablished, and the broader
+goal remains incomplete.
