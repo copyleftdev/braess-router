@@ -74,6 +74,13 @@ and OpenRouter-adapter execution, private response capture, source-span validati
 and replay events. Its offline full-path test distinguishes validated findings,
 fabricated quotes and budget deferrals. Real-corpus paid execution is still pending.
 
+## Human assessment
+
+The [private adjudication companion](ADJUDICATION.md) prepares a queue for every
+recorded task and binds supplied reviewer decisions to exact run/review hashes.
+It leaves unknown work unresolved and never invents a human judgment. No actual
+human assessments have been recorded yet.
+
 ## Shared spending reservations
 
 The observer can now reserve from a durable, concurrent run-level ledger before

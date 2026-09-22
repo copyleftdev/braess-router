@@ -135,9 +135,10 @@ than stuffing base64 media into the existing text request or letting models fetc
 arbitrary URLs. Resolve references inside the worker with size, duration, pixel,
 page, decompression and timeout bounds. Treat document instructions as untrusted
 across every modality. New vision/audio/video handlers need independently tested
-provider contracts, response schemas and pricing before live admission. Current
-Braess/OpenRouter generation support is text-only; this section describes planned
-extensions, not existing functionality.
+provider contracts, response schemas and pricing before live admission. Braess now supports provisioned image references through the OpenRouter adapter,
+with exact pixel transport, receipts and source navigation tested against scripted
+providers. Live image capability/pricing and semantic quality remain unverified;
+audio/video handlers remain planned extensions. See [image evidence](../demo/VISION.md).
 
 Budget reservations must include image/page units, audio duration, frame sampling,
 transcription and downstream review, using verified provider billing rules.
@@ -169,8 +170,8 @@ The [official cascade example](https://openrouter.ai/docs/cookbook/evaluate-and-
 is relevant to selective escalation, but supplies no evidence of legal accuracy.
 
 Current Braess pins the direct TypeSafe URL and model and permits exactly the
-`route` and `supported` questions. The existing OpenRouter adapter only performs
-text generation. Required work:
+`route` and `supported` questions. The existing OpenRouter adapter performs text and provisioned-image generation;
+its image path has local transport evidence only. Required decision-provider work:
 
 1. Add an explicit decision-provider abstraction with distinct direct-TypeSafe
    and OpenRouter transports; pin model IDs and normalize validated responses.
