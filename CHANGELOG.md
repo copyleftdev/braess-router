@@ -2,6 +2,9 @@
 
 ## 0.1.0-alpha.8
 
+- Add a bounded, read-only MCP discovery companion with private snapshots, explicit JPY pricing and no paid tool calls.
+- Verify both FastMetal companions in CI and include their stages and fixtures in sealed validation evidence.
+
 - Add a bounded FastMetal generation adapter with fixed model routes, reasoning settings and separate JPY receipts.
 - Support FastMetal-hosted Jev decisions with an encoded request size bound and pinned response model.
 - Share the existing durable generation engine and image-reference validation with OpenRouter.

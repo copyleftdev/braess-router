@@ -83,7 +83,7 @@ def run(output):
         stage('clippy', ['cargo', 'clippy', '--locked', '--offline', '--all-targets', '--', '-D', 'warnings'])
         stage('build', ['cargo', 'build', '--locked', '--offline', '--release', '--bins'], timeout=1800)
         binaries = {str(target / n): digest(target / n) for n in
-                    ('braess-router', 'braess-eval', 'braess-budget-init', 'braess-journal-init', 'braess-journal-compact', 'braess-openrouter', 'braess-fastmetal')}
+                    ('braess-router', 'braess-eval', 'braess-budget-init', 'braess-journal-init', 'braess-journal-compact', 'braess-openrouter', 'braess-fastmetal', 'braess-fastmetal-discover')}
         write(output / 'binary-hashes.json', binaries)
         for name, script, binary in [('gateway', 'gateway_e2e.py', 'braess-router'),
                                      ('catalog', 'gateway_catalog_e2e.py', 'braess-router'),
@@ -92,7 +92,8 @@ def run(output):
                                      ('deployment', 'deployment_e2e.py', 'braess-router'),
                                      ('provider_contract', 'provider_contract_e2e.py', 'braess-router'),
                                      ('openrouter', 'openrouter_e2e.py', 'braess-openrouter'),
-                                     ('fastmetal', 'fastmetal_e2e.py', 'braess-fastmetal')]:
+                                     ('fastmetal', 'fastmetal_e2e.py', 'braess-fastmetal'),
+                                     ('fastmetal_discovery', 'fastmetal_discovery_e2e.py', 'braess-fastmetal-discover')]:
             stage(name, [sys.executable, str(ROOT / 'scripts' / script), str(output / name),
                          '--binary', str(target / binary)])
         actual = {str(p.relative_to(ROOT)): digest(p) for p in source_paths()}

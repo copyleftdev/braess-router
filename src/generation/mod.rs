@@ -1,5 +1,5 @@
 //! Bounded, non-streaming generation for OpenRouter and FastMetal.
-//! generation reservations and receipts are separate from Jev accounting.
+//! Generation reservations and receipts are separate from Jev accounting.
 mod journal;
 mod vision;
 pub use vision::InputEvidence;
@@ -141,7 +141,10 @@ impl Config {
             || (self.mode == Mode::Live && self.url != self.backend.live_url())
             || (self.mode == Mode::Mock && !mock_url)
         {
-            return Err("invalid_openrouter_config");
+            return Err(match self.backend {
+                Backend::Openrouter => "invalid_openrouter_config",
+                Backend::Fastmetal => "invalid_fastmetal_config",
+            });
         }
         for (name, route) in &self.routes {
             if !valid_route_label(name)
@@ -165,7 +168,10 @@ impl Config {
                 || matches!(route.reasoning, Some(Reasoning::Budget { max_tokens }) if max_tokens == 0 || max_tokens > route.max_tokens)
                 || !(1..=32_768).contains(&route.max_tokens)
             {
-                return Err("invalid_openrouter_route");
+                return Err(match self.backend {
+                    Backend::Openrouter => "invalid_openrouter_route",
+                    Backend::Fastmetal => "invalid_fastmetal_route",
+                });
             }
         }
         if self.vision_bundles.len() > 8
@@ -410,12 +416,20 @@ impl Adapter {
         let key = match (&config.mode, key) {
             (Mode::Live, Some(k)) if !k.trim().is_empty() => {
                 let mut value = reqwest::header::HeaderValue::from_str(&format!("Bearer {k}"))
-                    .map_err(|_| "invalid_openrouter_key")?;
+                    .map_err(|_| match config.backend {
+                        Backend::Openrouter => "invalid_openrouter_key",
+                        Backend::Fastmetal => "invalid_fastmetal_key",
+                    })?;
                 value.set_sensitive(true);
                 Some(value)
             }
             (Mode::Mock, None) => None,
-            _ => return Err("openrouter_key_mode_mismatch"),
+            _ => {
+                return Err(match config.backend {
+                    Backend::Openrouter => "openrouter_key_mode_mismatch",
+                    Backend::Fastmetal => "fastmetal_key_mode_mismatch",
+                });
+            }
         };
         let client = reqwest::Client::builder()
             .no_proxy()

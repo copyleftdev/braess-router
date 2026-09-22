@@ -1,0 +1,23 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"model\": \"gpt-4.1-nano\",\n  \"input_per_1m_yen\": 17.87,\n  \"output_per_1m_yen\": 71.48,\n  \"is_image\": false,\n  \"supports_vision\": true,\n  \"data_policy\": {\n    \"trains\": \"no\",\n    \"retains\": \"yes\"\n  }\n}"
+      }
+    ],
+    "structuredContent": {
+      "model": "gpt-4.1-nano",
+      "input_per_1m_yen": 17.87,
+      "output_per_1m_yen": 71.48,
+      "is_image": false,
+      "supports_vision": true,
+      "data_policy": {
+        "trains": "no",
+        "retains": "yes"
+      }
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 4
+}

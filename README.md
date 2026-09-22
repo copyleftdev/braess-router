@@ -48,6 +48,7 @@ and providers, with durable call reservations and generation receipts.
 `braess-fastmetal` supports fixed model routes, bounded text or image-reference
 requests, explicit reasoning settings and durable generation receipts. Jev can
 also run through FastMetal. Costs are recorded separately in JPY.
+`braess-fastmetal-discover` captures free MCP model, pricing and balance snapshots.
 [Setup, observed API contracts and limits](docs/FASTMETAL.md).
 
 ## Guarantees and limits

@@ -54,3 +54,7 @@ path = "src/bin/braess-openrouter.rs"
 [[bin]]
 name = "braess-fastmetal"
 path = "src/bin/braess-fastmetal.rs"
+
+[[bin]]
+name = "braess-fastmetal-discover"
+path = "src/bin/braess-fastmetal-discover.rs"

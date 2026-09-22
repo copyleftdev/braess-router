@@ -14,3 +14,5 @@ pub(crate) fn fixed_model(model: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b"-._".contains(&b))
         && !matches!(model, "auto" | "random-free")
 }
+
+pub mod discovery;
