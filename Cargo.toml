@@ -1,6 +1,6 @@
 [package]
 name = "braess-router"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.8"
 edition = "2024"
 rust-version = "1.97.1"
 publish = ["crates-io"]
@@ -50,3 +50,11 @@ path = "src/bin/braess-journal-compact.rs"
 [[bin]]
 name = "braess-openrouter"
 path = "src/bin/braess-openrouter.rs"
+
+[[bin]]
+name = "braess-fastmetal"
+path = "src/bin/braess-fastmetal.rs"
+
+[[bin]]
+name = "braess-fastmetal-discover"
+path = "src/bin/braess-fastmetal-discover.rs"

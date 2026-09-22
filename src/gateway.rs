@@ -23,9 +23,41 @@ pub enum Mode {
     Mock,
     Live,
 }
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum JevBackend {
+    #[default]
+    Typesafe,
+    Fastmetal,
+}
+impl JevBackend {
+    fn is_typesafe(&self) -> bool {
+        *self == Self::Typesafe
+    }
+    pub fn key_env(self) -> &'static str {
+        match self {
+            Self::Typesafe => "TYPESAFE_API_KEY",
+            Self::Fastmetal => "FASTMETAL_API_KEY",
+        }
+    }
+    fn url(self) -> &'static str {
+        match self {
+            Self::Typesafe => "https://api.typesafe.ai/v1/systemone",
+            Self::Fastmetal => crate::fastmetal::DECISION_URL,
+        }
+    }
+    fn model(self) -> &'static str {
+        match self {
+            Self::Typesafe => "jev-1.13.0",
+            Self::Fastmetal => crate::fastmetal::DECISION_MODEL,
+        }
+    }
+}
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    #[serde(default, skip_serializing_if = "JevBackend::is_typesafe")]
+    pub jev_backend: JevBackend,
     pub bind: String,
     pub mode: Mode,
     pub jev_url: String,
@@ -70,6 +102,9 @@ impl Config {
         if let Some(rate) = &self.jev_rate_limit {
             scope["jev_rate_limit"] = json!(rate);
         }
+        if self.jev_backend != JevBackend::Typesafe {
+            scope["jev_backend"] = json!(self.jev_backend);
+        }
         let scope = scope.to_string();
         if scope.len() > 65536 {
             return Err("journal scope too large".into());
@@ -77,6 +112,9 @@ impl Config {
         Ok(scope)
     }
     fn validate_catalog(&self, rubric: &Rubric) -> Result<(), String> {
+        if rubric.model != self.jev_backend.model() {
+            return Err("rubric model must match Jev backend".into());
+        }
         let catalog = rubric.questions["route"]["criteria"]
             .as_object()
             .ok_or("missing route criteria")?;
@@ -119,7 +157,7 @@ impl Config {
         }
         if match self.mode {
             Mode::Mock => !local_url(&self.jev_url),
-            Mode::Live => self.jev_url != "https://api.typesafe.ai/v1/systemone",
+            Mode::Live => self.jev_url != self.jev_backend.url(),
         } {
             return Err("invalid Jev destination for mode".into());
         }
@@ -158,6 +196,26 @@ impl Config {
         Ok(())
     }
 }
+fn decision_body(
+    backend: JevBackend,
+    rubric: &Rubric,
+    request: &str,
+) -> Result<Vec<u8>, GatewayFailure> {
+    let mut body = json!({"state":{"request":request},"questions":rubric.questions});
+    body["model"] = json!(match backend {
+        JevBackend::Typesafe => rubric.model.as_str(),
+        JevBackend::Fastmetal => "typesafe/jev-1.13",
+    });
+    let bytes =
+        serde_json::to_vec(&body).map_err(|_| GatewayFailure::new(400, "invalid_request"))?;
+    if backend == JevBackend::Fastmetal
+        && bytes.len() + (crate::fastmetal::DECISION_MODEL.len() - "typesafe/jev-1.13".len()) > 8192
+    {
+        return Err(GatewayFailure::new(413, "fastmetal_decision_too_large"));
+    }
+    Ok(bytes)
+}
+
 fn validate_rubric(rubric: &Rubric) -> Result<(), String> {
     let questions = rubric
         .questions
@@ -657,6 +715,7 @@ impl Gateway {
         if input.request.trim().is_empty() || input.request.len() > self.config.max_request_bytes {
             return Err(GatewayFailure::new(400, "invalid_request"));
         }
+        let body = decision_body(self.config.jev_backend, &self.rubric, &input.request)?;
         if self.durable_pending("jev") >= self.config.admission_limit {
             return Err(GatewayFailure::new(503, "jev_durable_admission_full"));
         }
@@ -681,7 +740,11 @@ impl Gateway {
             })?;
         self.reserve_durable_call().await?;
         let journal_id = self.journal_begin("jev".into()).await?;
-        let mut request=self.client.post(&self.config.jev_url).json(&json!({"model":self.rubric.model,"state":{"request":input.request},"questions":self.rubric.questions}));
+        let mut request = self
+            .client
+            .post(&self.config.jev_url)
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(body);
         if let Some(key) = &self.key {
             request = request.bearer_auth(key);
         }
@@ -815,6 +878,7 @@ mod tests {
     use super::*;
     fn config() -> Config {
         Config {
+            jev_backend: JevBackend::Typesafe,
             bind: "127.0.0.1:0".into(),
             mode: Mode::Mock,
             jev_url: "http://127.0.0.1:1234/jev".into(),
@@ -995,5 +1059,22 @@ mod tests {
             gateway.reserve_call().unwrap_err().code,
             "jev_call_budget_exhausted"
         );
+    }
+    #[test]
+    fn fastmetal_decisions_map_model_and_bound_encoded_bytes() {
+        let r = rubric();
+        let bytes = decision_body(JevBackend::Fastmetal, &r, "hello").unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(value["model"], "typesafe/jev-1.13");
+        let overhead = decision_body(JevBackend::Fastmetal, &r, "").unwrap().len() + 9;
+        assert_eq!(
+            decision_body(JevBackend::Fastmetal, &r, &"x".repeat(8192 - overhead))
+                .unwrap()
+                .len(),
+            8183
+        );
+        assert!(decision_body(JevBackend::Fastmetal, &r, &"x".repeat(8193 - overhead)).is_err());
+        assert!(decision_body(JevBackend::Fastmetal, &r, &"\\".repeat(4096)).is_err());
+        assert_eq!(JevBackend::Fastmetal.key_env(), "FASTMETAL_API_KEY");
     }
 }

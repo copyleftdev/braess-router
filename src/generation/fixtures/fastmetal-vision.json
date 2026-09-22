@@ -1,0 +1,38 @@
+{
+  "id": "sanitized-generation",
+  "model": "gpt-4.1-nano",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Red",
+        "role": "assistant",
+        "provider_specific_fields": null
+      },
+      "provider_specific_fields": {
+        "native_finish_reason": "completed"
+      }
+    }
+  ],
+  "usage": {
+    "completion_tokens": 2,
+    "prompt_tokens": 22,
+    "total_tokens": 24,
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "video_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "is_byok": false
+  },
+  "provider": "OpenAI",
+  "service_tier": "default"
+}

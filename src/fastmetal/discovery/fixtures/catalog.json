@@ -1,0 +1,43 @@
+{
+  "result": {
+    "structuredContent": {
+      "count": 3,
+      "models": [
+        {
+          "id": "bytedance-seedream-4.5",
+          "type": "image",
+          "cost_per_image_yen": 7.15,
+          "supports_vision": false,
+          "data_policy": {
+            "trains": "no",
+            "retains": "no"
+          }
+        },
+        {
+          "id": "gpt-4.1-nano",
+          "type": "text",
+          "input_per_1m_yen": 17.87,
+          "output_per_1m_yen": 71.48,
+          "supports_vision": true,
+          "data_policy": {
+            "trains": "no",
+            "retains": "yes"
+          }
+        },
+        {
+          "id": "gpt-oss-20b",
+          "type": "text",
+          "input_per_1m_yen": 5.361,
+          "output_per_1m_yen": 25.018,
+          "supports_vision": false,
+          "data_policy": {
+            "trains": "no",
+            "retains": "no"
+          }
+        }
+      ]
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 3
+}

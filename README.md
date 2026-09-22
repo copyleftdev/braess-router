@@ -43,6 +43,14 @@ The optional `braess-openrouter` companion maps selected routes to explicit mode
 and providers, with durable call reservations and generation receipts.
 [Setup and limits](docs/OPENROUTER.md). Text-only, non-streaming, no automatic retries.
 
+## Execute through FastMetal
+
+`braess-fastmetal` supports fixed model routes, bounded text or image-reference
+requests, explicit reasoning settings and durable generation receipts. Jev can
+also run through FastMetal. Costs are recorded separately in JPY.
+`braess-fastmetal-discover` captures free MCP model, pricing and balance snapshots.
+[Setup, observed API contracts and limits](docs/FASTMETAL.md).
+
 ## Guarantees and limits
 
 - Bounded ingress, body sizes, deadlines, endpoint admission and uncertainty records.

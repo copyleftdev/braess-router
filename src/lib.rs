@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 pub mod admission;
 pub mod durable_budget;
 pub mod durable_requests;
+pub mod fastmetal;
 pub mod gateway;
+pub mod generation;
 pub mod ledger_http;
 pub mod local_http;
 pub mod openrouter;
@@ -48,7 +50,9 @@ pub struct Rubric {
 
 impl Rubric {
     pub fn validate(&self) -> Result<(), String> {
-        if self.model != "jev-1.13.0" || self.version.is_empty() {
+        if !["jev-1.13.0", crate::fastmetal::DECISION_MODEL].contains(&self.model.as_str())
+            || self.version.is_empty()
+        {
             return Err("Use a pinned, reviewed model and a versioned rubric".into());
         }
         if ![

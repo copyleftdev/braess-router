@@ -23,8 +23,9 @@ def run(binary, output):
     e.fixture_answer = answer
     rubric = e.ROOT / 'eval/rubric.customer-service.json'
     records = []
+    # Catalog correctness includes multiple durable fsyncs; timeout behavior has dedicated tests.
     with e.gateway(binary, output, 'catalog', initialize_durable=True,
-                   rubric_path=str(rubric), max_jev_calls=20) as (url, fixtures):
+                   rubric_path=str(rubric), max_jev_calls=20, deadline_ms=2000) as (url, fixtures):
         for label, expected, handler in [('billing', 200, 'billing'),
                                          ('support', 200, 'support'),
                                          ('uncertain', 200, None),
@@ -32,7 +33,7 @@ def run(binary, output):
             start = len(fixtures.events)
             response = e.request(url + '/route', {'request': label})
             events = fixtures.events[start:]
-            e.require(response['status'] == expected, f'{label}: wrong status')
+            e.require(response['status'] == expected, f'{label}: wrong status: {response}')
             e.require([x['path'] for x in events if x['path'] != '/v1/systemone'] ==
                       ([] if handler is None else ['/' + handler]), 'incorrect dispatch')
             if expected == 200:

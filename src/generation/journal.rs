@@ -26,7 +26,7 @@ enum Event {
         model: String,
     },
     Complete {
-        receipt: Receipt,
+        receipt: Box<Receipt>,
     },
 }
 #[derive(Default)]
@@ -142,7 +142,9 @@ impl Journal {
                     accounting.begun = id;
                     accounting.pending.insert(id, (route, model));
                 }
-                Event::Complete { receipt } if n > 0 => accounting.complete(receipt)?,
+                Event::Complete { receipt } if n > 0 && receipt.backend == config.backend => {
+                    accounting.complete(*receipt)?
+                }
                 _ => return Err(invalid()),
             }
         }
@@ -203,11 +205,14 @@ impl Journal {
         Ok(id)
     }
     pub fn complete(&mut self, receipt: Receipt) -> Result<(), Failure> {
+        if receipt.backend != self.config.backend {
+            return Err(fail(503, "journal_backend_mismatch"));
+        }
         self.accounting
             .receipt_totals(&receipt)
             .map_err(|_| fail(503, "journal_unavailable"))?;
         let event = Event::Complete {
-            receipt: receipt.clone(),
+            receipt: Box::new(receipt.clone()),
         };
         if encode(&event)
             .map_err(|_| fail(503, "journal_unavailable"))?
@@ -242,6 +247,7 @@ mod tests {
         let path =
             std::env::temp_dir().join(format!("braess-or-io-failure-{}.jsonl", std::process::id()));
         let config = Config {
+            backend: crate::generation::Backend::Openrouter,
             bind: "127.0.0.1:9876".parse().unwrap(),
             mode: super::super::Mode::Mock,
             url: "http://127.0.0.1:9877/x".into(),
@@ -257,6 +263,8 @@ mod tests {
                 super::super::Route {
                     model: "fixture/general".into(),
                     provider: "fixture".into(),
+                    reasoning: None,
+                    output_format: None,
                     max_tokens: 8,
                     input_mode: super::super::InputMode::Text,
                 },
@@ -269,6 +277,9 @@ mod tests {
             .unwrap();
         journal.file = File::open(&path).unwrap(); // Inject a write failure with a read-only descriptor.
         let receipt = Receipt {
+            backend: crate::generation::Backend::Openrouter,
+            reported_cost_jpy: None,
+            reasoning_tokens: None,
             attempt_id: 1,
             route: "general".into(),
             requested_model: "fixture/general".into(),
