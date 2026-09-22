@@ -43,3 +43,5 @@ License: MIT OR Apache-2.0. Choose either license. [Support copyleftdev](https:/
 ## Discovery showcase
 
 [Explore the discovery replay](https://copyleftdev.github.io/braess-router/discovery/index.html). Four synthetic tasks demonstrate standard review, deeper review, local fallback and budget deferral. Braess and the adapter executed locally; Jev and reviewer responses were scripted. The replay shows recorded outcomes, not legal accuracy, cost savings or live inference. No private documents are published.
+
+The discovery section includes a 74-second narrated walkthrough with English captions. [Read the transcript](https://copyleftdev.github.io/braess-router/discovery/media/transcript.txt) or [watch the film](https://copyleftdev.github.io/braess-router/discovery/media/walkthrough.mp4). Voice: ElevenLabs George. This film explains the same synthetic four-task experiment; it is not live inference.

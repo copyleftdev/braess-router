@@ -11,6 +11,11 @@ for(const [name,width] of [['desktop',1440],['mobile',390]]){
  await page.locator('#discovery').scrollIntoViewIfNeeded();
  await page.screenshot({path:`.impeccable/review/showcase-home-${name}.png`});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ assert.ok(!requests.some(url=>url.endsWith('.mp4')), 'Film must not load before playback');
+ await page.locator('video').evaluate(async video=>{video.muted=true;await video.play();});
+ await page.waitForFunction(()=>document.querySelector('video').currentTime>0);
+ const film=await page.locator('video').evaluate(video=>{video.pause();return {width:video.videoWidth,duration:video.duration,cues:video.textTracks[0].cues.length};});
+ assert.equal(film.width,1920);assert.equal(film.cues,21);assert.ok(Math.abs(film.duration-73.993)<0.2);
  await page.getByRole('link',{name:'Explore the discovery replay'}).click();await page.locator('.task-row').first().waitFor();await page.evaluate(()=>document.fonts.ready);
  assert.equal(await page.locator('.task-row').count(),4);assert.equal(await page.locator('#completed').textContent(),'2');assert.equal(await page.locator('#uncertain').textContent(),'1');assert.equal(await page.locator('#deferred').textContent(),'1');
  await page.screenshot({path:`.impeccable/review/showcase-intro-${name}.png`});

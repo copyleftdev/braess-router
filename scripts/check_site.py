@@ -17,6 +17,8 @@ FILES = {
     'assets/mark.svg', 'assets/archivo-400.woff2', 'assets/archivo-600.woff2',
     'assets/OFL-Archivo.txt', 'assets/social-card.svg', 'assets/social-card.png',
     'llms.txt', 'index.md', 'sitemap.xml',
+    'discovery/media/walkthrough.mp4', 'discovery/media/walkthrough.vtt',
+    'discovery/media/transcript.txt', 'discovery/media/poster.png',
     'discovery/index.html', 'discovery/style.css', 'discovery/app.js', 'discovery/replay.json',
 }
 
@@ -76,7 +78,7 @@ class Page(HTMLParser):
         self.in_title = self.in_title or tag == 'title'
         if tag == 'script' and attrs.get('type') == 'application/ld+json':
             self.in_jsonld = True
-        for key in ('href', 'src'):
+        for key in ('href', 'src', 'poster'):
             if attrs.get(key):
                 self.targets.append(attrs[key])
 
@@ -160,6 +162,11 @@ def validate_discovery():
 
 
 def validate_showcase():
+    media_hashes = {'walkthrough.vtt': 'd241d46e0ed230a50ce9d8b674c52ee23eb1adeac56765548569a47099b35ebc', 'walkthrough.mp4': '3084e4c11c0f8a9664266c3b33952c05ee99e79f4d00a3b9f9d46e84c9200fc2', 'poster.png': 'aae72a1b94f45a99c037cee992347611888f9f76a74b894b333d8d3cf13bc714', 'transcript.txt': 'ed3695bf31bf11e9efa0917d43ab33440284fd259789df617d7e10f68ffa458b'}
+    for name, expected in media_hashes.items():
+        if hashlib.sha256((SITE / "discovery/media" / name).read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Unapproved discovery media: {name}")
+
     # This hash pins the reviewed, allowlisted discovery export. Changing datasets
     # requires an explicit publication review, never a copy of a private run.
     fixture = SITE / 'discovery/replay.json'

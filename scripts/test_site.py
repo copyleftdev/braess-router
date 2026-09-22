@@ -27,6 +27,11 @@ class DiscoveryTests(unittest.TestCase):
     def test_valid_site(self):
         check_site.validate()
 
+    def test_changed_public_film(self):
+        (self.site / 'discovery/media/walkthrough.mp4').write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'Unapproved discovery media'):
+            check_site.validate()
+
     def test_unapproved_discovery_recording(self):
         p = self.site / 'discovery/replay.json'
         p.write_bytes(p.read_bytes() + b' ')

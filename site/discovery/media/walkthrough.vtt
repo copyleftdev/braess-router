@@ -1,0 +1,78 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.876
+Discovery begins with documents, and a
+question: what needs closer review?
+
+00:00:05.341 --> 00:00:09.358
+This demonstration follows four synthetic
+tasks through Braess Router.
+
+00:00:09.822 --> 00:00:13.758
+The router runs locally; Jev and reviewer
+responses are scripted.
+
+00:00:14.222 --> 00:00:15.987
+Jev proposes a review route.
+
+00:00:16.451 --> 00:00:19.539
+Braess checks that decision against policy
+before dispatch.
+
+00:00:19.829 --> 00:00:21.803
+Dashed branches show the candidates.
+
+00:00:22.268 --> 00:00:24.787
+The solid path shows the recorded outcome.
+
+00:00:25.321 --> 00:00:27.538
+The first task takes standard review.
+
+00:00:28.003 --> 00:00:31.137
+Its returned evidence passes source-span
+validation.
+
+00:00:31.671 --> 00:00:35.781
+That checks the supporting text, but does
+not establish legal accuracy.
+
+00:00:36.246 --> 00:00:40.611
+The second task takes deeper review, but
+its evidence fails validation.
+
+00:00:41.076 --> 00:00:45.023
+The work remains uncertain, so it cannot
+silently count as a successful
+
+00:00:45.104 --> 00:00:45.720
+review.
+
+00:00:46.184 --> 00:00:49.992
+The third task returns through local
+fallback, without dispatching to a
+
+00:00:50.062 --> 00:00:50.712
+reviewer.
+
+00:00:51.246 --> 00:00:54.996
+A completed fallback is a different
+outcome from a validated review.
+
+00:00:55.460 --> 00:00:58.863
+The fourth task reaches its budget limit
+before dispatch.
+
+00:00:59.083 --> 00:01:00.349
+It stays deferred.
+
+00:01:00.883 --> 00:01:02.868
+There is no model decision to show.
+
+00:01:03.332 --> 00:01:07.721
+Two tasks completed, one remained
+uncertain, and one was deferred.
+
+00:01:08.185 --> 00:01:12.493
+Explore the replay to inspect each
+decision and the events behind it.
+
