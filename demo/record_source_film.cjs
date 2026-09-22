@@ -4,10 +4,12 @@ const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {execFileSync}=require('child_process');
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const root=path.resolve(__dirname,'..'),origin=process.env.BRAESS_REPLAY_URL||'http://127.0.0.1:4180';
+const imageInput=process.argv[3]==='--image-input';
+if(process.argv[3]&&!imageInput)throw Error('Unknown capture mode');
 const preview=new URL(origin);
 if(preview.protocol!=='http:'||preview.hostname!=='127.0.0.1'||preview.origin!==origin)throw Error('Capture requires a loopback HTTP origin');
 const sourceFiles=['demo/web/index.html','demo/web/style.css','demo/web/app.js','demo/web/inspector.css','demo/web/inspector.js',
- 'demo/serve.py','demo/private_replay.py','demo/review_link.py','demo/record_source_film.cjs',
+ 'demo/serve.py','demo/private_replay.py','demo/review_link.py','demo/vision_link.py','demo/record_source_film.cjs',
  'site/assets/archivo-400.woff2','site/assets/archivo-600.woff2','site/assets/mark.svg'];
 const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.readFileSync(path.join(root,name)))]));
 (async()=>{
@@ -25,13 +27,16 @@ const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.re
   }
   for(const name of ['index.html','style.css','app.js','inspector.css','inspector.js',
     'assets/archivo-400.woff2','assets/archivo-600.woff2','assets/mark.svg'])await captureAsset(name);
-  const recording=JSON.parse(await captureAsset('replay.json')),links=JSON.parse(await captureAsset('review-links.json'));
+  const recording=JSON.parse(await captureAsset('replay.json')),links=JSON.parse(await captureAsset(imageInput?'image-link.json':'review-links.json'));
   const evidence=JSON.parse(await captureAsset('evidence/manifest.json'));
-  if(recording.run.scope!=='synthetic'||!recording.sealed||recording.presentation.profile!=='private_review'||links.run_id!==recording.run.run_id||links.links.length!==1||links.links[0].inspector_manifest_sha256!==assets['evidence/manifest.json'])throw Error('Expected one verified synthetic OCR review');
-  const association=links.links[0],findings=association.review.findings;
-  if(findings.length!==1||findings[0].location.image_regions.length<1)throw Error('Expected mapped source finding');
+  const association=imageInput?links:links.links?.[0],findings=association?.review?.findings;
+  if(recording.run.scope!=='synthetic'||!recording.sealed||recording.presentation.profile!==(imageInput?'private_execution':'private_review')||links.run_id!==recording.run.run_id||association?.inspector_manifest_sha256!==assets['evidence/manifest.json'])throw Error('Expected verified synthetic source recording');
+  if(imageInput){
+   const event=recording.events.find(e=>e.task_id===association.task_id&&e.kind==='response_received');
+   if(association.association!=='verified_image_input_receipt'||association.pages.length!==2||association.response_event_sha256!==event?.sha256||association.reference_sha256!==event?.data.generation_input_evidence?.reference_sha256)throw Error('Expected two submitted scan pages');
+  }else if(links.links.length!==1||findings.length!==1||findings[0].location.image_regions.length<1)throw Error('Expected mapped source finding');
   for(const name of ['evidence/text.txt','evidence/words.json',...evidence.pages.map((p,i)=>`evidence/page-${i+1}.png`)])await captureAsset(name);
-  await page.goto(origin);await page.locator('.inspect-source').waitFor();await page.evaluate(()=>document.fonts.ready);
+  await page.goto(origin);await page.locator('.inspect-source').first().waitFor();await page.waitForFunction(()=>{const button=document.querySelector('.inspect-source');return button&&!button.disabled;});await page.evaluate(()=>document.fonts.ready);
   if(await page.locator('.task-row').count()!==1)throw Error('Unexpected source task count');
   const start=performance.now();
   const mark=async name=>steps.push({name,capture_elapsed_ms:performance.now()-start,
@@ -46,21 +51,34 @@ const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.re
   await page.locator('.route-comparison').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
   await mark('visible route comparison and observation coverage');await page.waitForTimeout(4000);
   await page.locator('.review').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
-  await mark('decision metadata and source-validated result');await page.waitForTimeout(3500);
-  await page.locator('#linked-findings').evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));
-  await mark('provisional quote and exact source range');await page.waitForTimeout(3500);
-  await page.locator('.inspect-source').click();
-  if(await page.locator('.finding-box').count()!==findings[0].location.image_regions.length)throw Error('Missing image regions');
-  await mark('finding opens matching source page');await page.waitForTimeout(4500);
-  await page.locator('.source-controls').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
-  await mark('scan regions and corresponding transcript');await page.waitForTimeout(5500);
-  await page.locator('#source-zoom').selectOption('native');
-  await mark('source-pixel view, whole-word OCR geometry');await page.waitForTimeout(4500);
+  await mark(imageInput?'decision metadata and image-input receipt':'decision metadata and source-validated result');await page.waitForTimeout(3500);
+  if(imageInput){
+   await page.locator('#submitted-pages').evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));
+   await mark('image receipt and submitted page controls');await page.waitForTimeout(3500);
+   for(const selected of association.pages){
+    await page.getByRole('button',{name:'Inspect submitted page '+selected.page,exact:true}).click();
+    await page.locator('#source-image').evaluate(async image=>{await image.decode();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));});
+    if(await page.locator('#source-image').evaluate(image=>image.naturalHeight)!==selected.height||await page.locator('.finding-box').count())throw Error('Submitted page mismatch');
+    await mark('submitted page '+selected.page+': exact input pixels, no understanding claim');await page.waitForTimeout(5500);
+   }
+   await page.locator('#source-zoom').selectOption('native');
+   await mark('native pixel view of submitted input');await page.waitForTimeout(3500);
+  }else{
+   await page.locator('#linked-findings').evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));
+   await mark('provisional quote and exact source range');await page.waitForTimeout(3500);
+   await page.locator('.inspect-source').click();
+   if(await page.locator('.finding-box').count()!==findings[0].location.image_regions.length)throw Error('Missing image regions');
+   await mark('finding opens matching source page');await page.waitForTimeout(4500);
+   await page.locator('.source-controls').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
+   await mark('scan regions and corresponding transcript');await page.waitForTimeout(5500);
+   await page.locator('#source-zoom').selectOption('native');
+   await mark('source-pixel view, whole-word OCR geometry');await page.waitForTimeout(4500);
+  }
   await page.locator('#source-zoom').selectOption('fit');
   await page.getByRole('button',{name:'Start',exact:true}).click();
   if(await page.locator('.finding-box').count()||await page.locator('#source-selection').isVisible())throw Error('Finding persists before validation');
   await page.locator('#source-heading').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
-  await mark('rewind clears the finding association');await page.waitForTimeout(2500);
+  await mark('rewind clears the source association');await page.waitForTimeout(2500);
   await page.locator('#seek').evaluate(e=>{e.value='1000';e.dispatchEvent(new Event('input',{bubbles:true}))});
   await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
   await mark('close: recorded scope, cost unknown');await page.waitForTimeout(2500);
@@ -79,7 +97,7 @@ const sourceHashes=()=>Object.fromEntries(sourceFiles.map(name=>[name,hash(fs.re
   const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_name,width,height,nb_frames','-of','json',mp4],{encoding:'utf8'}));
   if(probe.streams.length!==1||probe.streams[0].width!==1920||probe.streams[0].height!==1080||Number(probe.format.duration)<25)throw Error('Invalid film dimensions or duration');
   fs.writeFileSync(path.join(destination,'capture.json'),JSON.stringify({schema_version:1,
-   scope:'private OCR source-navigation film draft; real local routing with scripted providers',
+   scope:imageInput?'private image-input film draft; real local routing with scripted providers':'private OCR source-navigation film draft; real local routing with scripted providers',
    run_id:recording.run.run_id,task_id:association.task_id,document_id:association.document_id,
    source_hashes:sources,served_asset_hashes:assets,steps,probe,
    preview_origin:origin,

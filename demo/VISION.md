@@ -132,6 +132,6 @@ This association proves equality with provisioned input assets, not original
 native-file authenticity, model understanding, review accuracy or an approved
 redaction. Browser checks cover both actual scan pages, replay gating, manual
 selection clearing and rejected mismatched associations at desktop and mobile
-sizes. The original OCR-finding navigation regression also passes. Existing
-public-export and frozen-package commands do not yet include this new association;
-use the private loopback preview for this slice.
+sizes. The original OCR-finding navigation regression also passes. The [frozen private packager](PACKAGE.md#submitted-image-execution-packages)
+now preserves this association through its `build-execution` command. Existing
+public-export profiles still refuse it; no publication approval is implied.

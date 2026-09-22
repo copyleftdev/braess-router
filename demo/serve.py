@@ -66,21 +66,12 @@ if __name__ == '__main__':
         if not all(review_args):parser.error('review-corpus, review-tasks and review-run are required together')
         from private_replay import assets
         PRIVATE_ASSETS.update(assets(*review_args,inspector=args.evidence_bundle))
-    if args.evidence_bundle:
+    if args.evidence_bundle and not args.image_reference:
         from inspector_assets import load_bundle
         PRIVATE_ASSETS.update(load_bundle(args.evidence_bundle))
     if args.image_reference:
-        from vision_link import link
-        from recording import canonical, digest
-        association=link(args.recording,args.image_reference,args.evidence_bundle,args.image_task)
-        if digest(PRIVATE_ASSETS['evidence/manifest.json'][0])!=association['inspector_manifest_sha256']:
-            raise ValueError('inspector changed during association assembly')
-        import json
-        replay=json.loads(PRIVATE_ASSETS['replay.json'][0])
-        event=next((e for e in replay['events'] if e['sha256']==association['response_event_sha256']),None)
-        if replay['run']['run_id']!=association['run_id'] or event is None:
-            raise ValueError('recording changed during association assembly')
-        PRIVATE_ASSETS['image-link.json']=(canonical(association)+b'\n','application/json')
+        from private_replay import image_execution_assets
+        PRIVATE_ASSETS.update(image_execution_assets(args.recording,args.image_reference,args.evidence_bundle,args.image_task))
     with ThreadingHTTPServer(('127.0.0.1', args.port), Handler) as server:
         print(f'Replay: http://127.0.0.1:{server.server_port}', flush=True)
         server.serve_forever()

@@ -51,3 +51,27 @@ verifies it before upload, and verifies it again after downloading the validatio
 artifact. No real corpus is involved in that workflow. CI also installs the
 pinned Pillow dependency in a temporary virtual environment before running the
 Python suite so optional image tests execute there.
+
+## Submitted-image execution packages
+
+Freeze image-input provenance and scans without inventing a review finding:
+
+```sh
+python3 demo/package_replay.py build-execution RECORDING EXACT_REFERENCE \
+  INSPECTOR_BUNDLE TASK_ID NEW_PACKAGE
+python3 demo/package_replay.py verify NEW_PACKAGE
+```
+
+This mode uses the same verified association as the private viewer. It includes
+`image-link.json`, the scan inspector assets, replay, route analysis, viewer and
+fonts. It excludes the submitted reference file and its prompt, raw provider
+answers and credentials. The second assembly checks all frozen evidence bytes,
+including scan assets, before the final package manifest is written. Both
+packaging modes retain create-only output and the same 192 MiB bound.
+
+The actual two-page image transport recording produced a 16-file private package.
+Its desktop/mobile submitted-page navigation checks pass against the frozen
+server. Unit tests also relocate a package, remove original recording/reference/
+inspector inputs, verify the remaining bundle, reject a changed packaged image,
+and refuse mismatched reference bytes before creating output. These checks prove
+portability and byte identity, not model understanding or review accuracy.

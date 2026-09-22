@@ -58,3 +58,30 @@ asset hashes matched the package manifest, and both video hashes matched the
 capture manifest. A private `package-verification.json` binds those manifests.
 The route cohort contains one scripted result; this footage establishes neither
 production performance nor semantic accuracy. No provider calls occurred.
+
+## Submitted-image film mode
+
+For a frozen execution package containing one task and exactly two submitted
+pages, add `--image-input`:
+
+```sh
+BRAESS_REPLAY_URL=http://127.0.0.1:4184 \
+  node demo/record_source_film.cjs artifacts/image-film-NEW --image-input
+```
+
+This sequence visits the image receipt, each submitted scan page and native-pixel
+view, then demonstrates that rewind clears the association. It waits for each
+selected image to decode, checks its height against the bound page metadata,
+and refuses finding boxes in this input-only scene. The capture hashes
+`image-link.json` instead of `review-links.json`; the remaining asset-stability,
+loopback, synthetic-scope and encoding checks still apply. OCR finding mode
+remains the default. Both modes produce `source-replay.mp4`, `source-replay.webm`
+and a scope-labeled `capture.json`. Neither mode evaluates model understanding.
+
+The current private image-input draft is 39.84 seconds at 1920 × 1080. Its full
+MP4 decoded without errors, and extracted frames showed the correct first and
+second source pages with their transport labels. All 15 captured served-asset
+hashes match the frozen package; both video hashes match the capture manifest.
+The separate private package-verification record binds the package and capture
+manifests. It remains synthetic-provider demonstration footage, with zero
+external provider calls and no publication approval.

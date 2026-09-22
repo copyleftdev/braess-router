@@ -6,17 +6,28 @@ import json
 from pathlib import Path
 from corpus import private_write
 from inspector_assets import load_bundle
-from private_replay import assets
+from private_replay import assets, image_execution_assets
 from recording import canonical
 from run_metrics import metrics
 from serve import ASSETS
 
 
 def build(corpus, tasks, run, output, *, inspector=None):
-    output = Path(output)
-    content = assets(corpus, tasks, run, inspector=inspector)
-    if inspector:
-        content.update(load_bundle(inspector))
+    def assemble():
+        content=assets(corpus,tasks,run,inspector=inspector)
+        if inspector:content.update(load_bundle(inspector))
+        return content
+    return freeze(Path(run)/'recording',output,assemble)
+
+
+def build_execution(recording,reference,inspector,task_id,output):
+    return freeze(recording,output,lambda:image_execution_assets(recording,reference,inspector,task_id))
+
+
+def freeze(recording,output,assemble):
+    output=Path(output)
+    verified=assemble()
+    content=dict(verified)
     for name, (source, mime) in ASSETS.items():
         if name != 'replay.json':
             content[name] = (source.read_bytes(), mime)
@@ -24,13 +35,12 @@ def build(corpus, tasks, run, output, *, inspector=None):
         raise ValueError('replay package size bound exceeded')
     replay = json.loads(content['replay.json'][0])
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
-    analysis = metrics(Path(run)/'recording', output/'route-metrics.json')
+    analysis = metrics(recording, output/'route-metrics.json')
     if analysis['run_id'] != replay['run']['run_id']:
         raise ValueError('analysis and replay run mismatch')
     # The analysis verifier binds exact log bytes. Reassemble to ensure the
     # source associations did not change while the package was being prepared.
-    if assets(corpus, tasks, run, inspector=inspector) != {
-            name: content[name] for name in ('replay.json', 'review-links.json')}:
+    if assemble() != verified:
         raise ValueError('replay inputs changed during packaging')
     entries = {}
     for name, (body, mime) in content.items():
@@ -88,9 +98,13 @@ if __name__ == '__main__':
     for name in ('corpus', 'tasks', 'run', 'output'):
         create.add_argument(name, type=Path)
     create.add_argument('--inspector', type=Path)
+    execution=commands.add_parser('build-execution')
+    for name in ('recording','reference','inspector'):execution.add_argument(name,type=Path)
+    execution.add_argument('task_id');execution.add_argument('output',type=Path)
     check = commands.add_parser('verify'); check.add_argument('directory', type=Path)
     args = parser.parse_args()
-    result = (build(args.corpus, args.tasks, args.run, args.output, inspector=args.inspector)
-              if args.command == 'build' else verify(args.directory))
+    if args.command=='build':result=build(args.corpus,args.tasks,args.run,args.output,inspector=args.inspector)
+    elif args.command=='build-execution':result=build_execution(args.recording,args.reference,args.inspector,args.task_id,args.output)
+    else:result=verify(args.directory)
     print(canonical({'run_id': result['run_id'], 'scope': result['scope'], 'files': len(result['files']),
                      'publication_approved': result['publication_approved']}).decode())

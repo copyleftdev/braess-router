@@ -53,4 +53,46 @@ class PackageTests(unittest.TestCase):
         self.assertFalse(output.exists())
 
 
+@unittest.skipIf(fixtures.Image is None,'optional Pillow required')
+class ImagePackageTests(unittest.TestCase):
+    def setUp(self):
+        import test_vision_link
+        self.fixture=test_vision_link.VisionLinkTests();self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups);self.fixture.record()
+        self.output=self.fixture.root/'package'
+
+    def package(self):
+        from package_replay import build_execution
+        f=self.fixture
+        return build_execution(f.root/'recording',f.path,f.inspector,'task',self.output)
+
+    def test_relocated_package_keeps_page_binding_without_private_prompt(self):
+        import shutil
+        manifest=self.package()
+        for name in ('image-link.json','evidence/page-1.png','evidence/manifest.json','route-metrics.json'):
+            self.assertIn(name,manifest['files'])
+        self.assertNotIn('review-links.json',manifest['files'])
+        self.assertNotIn('reference.json',manifest['files'])
+        for name in manifest['files']:
+            self.assertNotIn(b'PRIVATE PROMPT',(self.output/name).read_bytes())
+        moved=self.fixture.root/'relocated';shutil.move(self.output,moved)
+        self.fixture.path.unlink()
+        shutil.rmtree(self.fixture.inspector)
+        shutil.rmtree(self.fixture.root/'recording')
+        self.assertEqual(verify(moved),manifest)
+        receipt=json.loads((moved/'replay.json').read_bytes())['events'][2]['data']['generation_input_evidence']
+        association=json.loads((moved/'image-link.json').read_bytes())
+        self.assertEqual(association['reference_sha256'],receipt['reference_sha256'])
+        self.assertEqual([p['sha256'] for p in association['pages']],receipt['image_sha256'])
+
+    def test_mismatched_reference_refused_before_output(self):
+        self.fixture.path.write_bytes(self.fixture.path.read_bytes()+b'\n')
+        with self.assertRaises(ValueError):self.package()
+        self.assertFalse(self.output.exists())
+
+    def test_changed_packaged_image_refused(self):
+        self.package();(self.output/'evidence/page-1.png').write_bytes(b'changed')
+        with self.assertRaises(ValueError):verify(self.output)
+
+
 if __name__ == '__main__': unittest.main()

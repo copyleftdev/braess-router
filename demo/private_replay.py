@@ -23,6 +23,23 @@ def execution_assets(directory):
     return {'replay.json':(canonical(replay)+b'\n','application/json')}
 
 
+def image_execution_assets(directory,reference,inspector,task_id):
+    from vision_link import link
+    from inspector_assets import load_bundle
+    from recording import digest
+    content=execution_assets(directory)
+    content.update(load_bundle(inspector))
+    association=link(directory,reference,inspector,task_id)
+    if digest(content['evidence/manifest.json'][0])!=association['inspector_manifest_sha256']:
+        raise ValueError('inspector changed during association assembly')
+    replay=parse(content['replay.json'][0])
+    event=next((e for e in replay['events'] if e['sha256']==association['response_event_sha256']),None)
+    if replay['run']['run_id']!=association['run_id'] or event is None:
+        raise ValueError('recording changed during association assembly')
+    content['image-link.json']=(canonical(association)+b'\n','application/json')
+    return content
+
+
 def assets(corpus,tasks,run,*,inspector=None):
     run=Path(run)
     replay=load_recording(run/'recording')
