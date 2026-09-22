@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate and stage only the public landing-page assets (standard library only)."""
 import argparse
+import hashlib
 import json
 import shutil
 import struct
@@ -16,6 +17,7 @@ FILES = {
     'assets/mark.svg', 'assets/archivo-400.woff2', 'assets/archivo-600.woff2',
     'assets/OFL-Archivo.txt', 'assets/social-card.svg', 'assets/social-card.png',
     'llms.txt', 'index.md', 'sitemap.xml',
+    'discovery/index.html', 'discovery/style.css', 'discovery/app.js', 'discovery/replay.json',
 }
 
 
@@ -37,6 +39,7 @@ def validate():
         if any(sample['outcome'] not in phase['outcomes'] for sample in phase['samples']):
             raise ValueError('Sample contains an unrecorded outcome')
 
+    validate_showcase()
     validate_discovery()
     print(f'PASS: {len(FILES)} publishable assets; {data["requests"]:,} recorded outcomes reconcile')
 
@@ -143,8 +146,8 @@ def validate_discovery():
         raise ValueError('Incorrect programming language')
     sitemap = ET.parse(SITE / 'sitemap.xml')
     locations = [e.text for e in sitemap.findall('.//{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
-    if locations != [BASE]:
-        raise ValueError('Sitemap must list the canonical HTML page exactly once')
+    if locations != [BASE, BASE + 'discovery/index.html']:
+        raise ValueError('Sitemap must list both canonical HTML pages exactly once')
     image = (SITE / 'assets/social-card.png').read_bytes()
     if image[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', image[16:24]) != (1200, 630):
         raise ValueError('Social preview must be a 1200x630 PNG')
@@ -154,6 +157,28 @@ def validate_discovery():
         raise ValueError('Agent guide missing its identity or Markdown entry')
     if BASE not in markdown or 'historical' not in markdown.lower() or 'synthetic' not in markdown.lower():
         raise ValueError('Markdown mirror missing canonical or evidence scope')
+
+
+def validate_showcase():
+    # This hash pins the reviewed, allowlisted discovery export. Changing datasets
+    # requires an explicit publication review, never a copy of a private run.
+    fixture = SITE / 'discovery/replay.json'
+    if hashlib.sha256(fixture.read_bytes()).hexdigest() != 'dd255cab20e7559e2e5d9ed1ec329dafedaf6b81d3272bd3b4001a932dc9fb8b':
+        raise ValueError('Unapproved discovery recording')
+    from build_discovery_site import assets
+    for name, content in assets().items():
+        if (SITE / 'discovery' / name).read_text() != content:
+            raise ValueError(f'Stale public discovery viewer: {name}')
+    page = Page()
+    page.feed((SITE / 'discovery/index.html').read_text())
+    if page.headings != 1 or page.links.get('canonical', {}).get('href') != BASE + 'discovery/index.html':
+        raise ValueError('Incorrect discovery identity')
+    for value in page.targets:
+        parsed = urlsplit(urljoin(BASE + 'discovery/index.html', value))
+        if parsed.netloc == urlsplit(BASE).netloc:
+            name = parsed.path.removeprefix('/braess-router/')
+            if name not in FILES:
+                raise ValueError(f'Discovery link leaves published assets: {value}')
 
 
 def main():

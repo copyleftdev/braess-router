@@ -27,6 +27,17 @@ class DiscoveryTests(unittest.TestCase):
     def test_valid_site(self):
         check_site.validate()
 
+    def test_unapproved_discovery_recording(self):
+        p = self.site / 'discovery/replay.json'
+        p.write_bytes(p.read_bytes() + b' ')
+        with self.assertRaisesRegex(ValueError, 'Unapproved discovery'):
+            check_site.validate()
+
+    def test_stale_discovery_viewer(self):
+        self.change('discovery/index.html', '../assets/mark.svg', '/assets/mark.svg')
+        with self.assertRaisesRegex(ValueError, 'Stale public discovery'):
+            check_site.validate()
+
     def test_canonical_drift(self):
         self.change('index.html', 'rel="canonical" href="https://copyleftdev.github.io/braess-router/"', 'rel="canonical" href="https://example.com/"')
         with self.assertRaisesRegex(ValueError, 'Canonical'):
