@@ -109,10 +109,12 @@ async fn route(
     match state.gateway.execute(request).await {
         Ok(response) => Json(response).into_response(),
         Err(failure) => {
-            let mut response = error(
+            let mut response = (
                 StatusCode::from_u16(failure.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                &failure.code,
-            );
+                Json(json!({"error":failure.code,"routing_trace":failure.routing_trace})),
+            )
+                .into_response();
+            response.extensions_mut().insert(ErrorCode(failure.code));
             if let Some(seconds) = failure.retry_after_seconds {
                 response
                     .headers_mut()

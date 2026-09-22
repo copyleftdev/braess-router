@@ -1,0 +1,13 @@
+Discovery begins with documents, and a question: what needs closer review? This demonstration follows four synthetic tasks through Braess Router. The router runs locally; Jev and reviewer responses are scripted.
+
+Jev proposes a review route. Braess checks that decision against policy before dispatch. Dashed branches show the candidates. The solid path shows the recorded outcome.
+
+The first task takes standard review. Its returned evidence passes source-span validation. That checks the supporting text, but does not establish legal accuracy.
+
+The second task takes deeper review, but its evidence fails validation. The work remains uncertain, so it cannot silently count as a successful review.
+
+The third task returns through local fallback, without dispatching to a reviewer. A completed fallback is a different outcome from a validated review.
+
+The fourth task reaches its budget limit before dispatch. It stays deferred. There is no model decision to show.
+
+Two tasks completed, one remained uncertain, and one was deferred. Explore the replay to inspect each decision and the events behind it.

@@ -7,6 +7,24 @@ and access controls separately.
 
 Use the [deployment guide](DEPLOYMENT.md) to prepare a private user service.
 
+## Routing trace
+
+Responses from the executor include `routing_trace`, also on failed operations.
+It records local monotonic nanosecond offsets for Jev send start, validated
+decision, handler send start, validated handler response and executor finish.
+Unreached boundaries are null. Requests rejected before entering the executor
+have no trace. Send start does not establish remote receipt, and executor finish
+does not resolve uncertain upstream work. A disconnect can prevent delivery of
+this metadata; it is not a durable event journal.
+
+The trace's optional `decision` contains validated model choice, route
+probabilities, confidence and supported scores, policy thresholds, gate reason
+and final route. Provider scores do not establish review accuracy. Handler
+validation means complete JSON passed the gateway transport contract, not that
+application-specific review findings passed validation. Trace intervals include
+local overhead and must not be reported as pure inference latency. No prompts,
+credentials or upstream diagnostic bodies are included.
+
 ## Configuration
 
 Start with `config/gateway.mock.json` or `config/gateway.live.example.json`.

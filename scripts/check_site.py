@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate and stage only the public landing-page assets (standard library only)."""
 import argparse
+import hashlib
 import json
 import shutil
 import struct
@@ -16,6 +17,9 @@ FILES = {
     'assets/mark.svg', 'assets/archivo-400.woff2', 'assets/archivo-600.woff2',
     'assets/OFL-Archivo.txt', 'assets/social-card.svg', 'assets/social-card.png',
     'llms.txt', 'index.md', 'sitemap.xml',
+    'discovery/media/walkthrough.mp4', 'discovery/media/walkthrough.vtt',
+    'discovery/media/transcript.txt', 'discovery/media/poster.png',
+    'discovery/index.html', 'discovery/style.css', 'discovery/app.js', 'discovery/replay.json',
 }
 
 
@@ -37,6 +41,7 @@ def validate():
         if any(sample['outcome'] not in phase['outcomes'] for sample in phase['samples']):
             raise ValueError('Sample contains an unrecorded outcome')
 
+    validate_showcase()
     validate_discovery()
     print(f'PASS: {len(FILES)} publishable assets; {data["requests"]:,} recorded outcomes reconcile')
 
@@ -73,7 +78,7 @@ class Page(HTMLParser):
         self.in_title = self.in_title or tag == 'title'
         if tag == 'script' and attrs.get('type') == 'application/ld+json':
             self.in_jsonld = True
-        for key in ('href', 'src'):
+        for key in ('href', 'src', 'poster'):
             if attrs.get(key):
                 self.targets.append(attrs[key])
 
@@ -143,8 +148,8 @@ def validate_discovery():
         raise ValueError('Incorrect programming language')
     sitemap = ET.parse(SITE / 'sitemap.xml')
     locations = [e.text for e in sitemap.findall('.//{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
-    if locations != [BASE]:
-        raise ValueError('Sitemap must list the canonical HTML page exactly once')
+    if locations != [BASE, BASE + 'discovery/index.html']:
+        raise ValueError('Sitemap must list both canonical HTML pages exactly once')
     image = (SITE / 'assets/social-card.png').read_bytes()
     if image[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', image[16:24]) != (1200, 630):
         raise ValueError('Social preview must be a 1200x630 PNG')
@@ -154,6 +159,33 @@ def validate_discovery():
         raise ValueError('Agent guide missing its identity or Markdown entry')
     if BASE not in markdown or 'historical' not in markdown.lower() or 'synthetic' not in markdown.lower():
         raise ValueError('Markdown mirror missing canonical or evidence scope')
+
+
+def validate_showcase():
+    media_hashes = {'walkthrough.vtt': 'd241d46e0ed230a50ce9d8b674c52ee23eb1adeac56765548569a47099b35ebc', 'walkthrough.mp4': '3084e4c11c0f8a9664266c3b33952c05ee99e79f4d00a3b9f9d46e84c9200fc2', 'poster.png': 'aae72a1b94f45a99c037cee992347611888f9f76a74b894b333d8d3cf13bc714', 'transcript.txt': 'ed3695bf31bf11e9efa0917d43ab33440284fd259789df617d7e10f68ffa458b'}
+    for name, expected in media_hashes.items():
+        if hashlib.sha256((SITE / "discovery/media" / name).read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Unapproved discovery media: {name}")
+
+    # This hash pins the reviewed, allowlisted discovery export. Changing datasets
+    # requires an explicit publication review, never a copy of a private run.
+    fixture = SITE / 'discovery/replay.json'
+    if hashlib.sha256(fixture.read_bytes()).hexdigest() != 'dd255cab20e7559e2e5d9ed1ec329dafedaf6b81d3272bd3b4001a932dc9fb8b':
+        raise ValueError('Unapproved discovery recording')
+    from build_discovery_site import assets
+    for name, content in assets().items():
+        if (SITE / 'discovery' / name).read_text() != content:
+            raise ValueError(f'Stale public discovery viewer: {name}')
+    page = Page()
+    page.feed((SITE / 'discovery/index.html').read_text())
+    if page.headings != 1 or page.links.get('canonical', {}).get('href') != BASE + 'discovery/index.html':
+        raise ValueError('Incorrect discovery identity')
+    for value in page.targets:
+        parsed = urlsplit(urljoin(BASE + 'discovery/index.html', value))
+        if parsed.netloc == urlsplit(BASE).netloc:
+            name = parsed.path.removeprefix('/braess-router/')
+            if name not in FILES:
+                raise ValueError(f'Discovery link leaves published assets: {value}')
 
 
 def main():

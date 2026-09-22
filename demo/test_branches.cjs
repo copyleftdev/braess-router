@@ -1,0 +1,40 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const fs=require('fs'),assert=require('assert/strict');
+const origin=process.env.BRAESS_REPLAY_URL||'http://127.0.0.1:4186';
+(async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const results=[];
+try{for(const [name,width] of [['desktop',1440],['mobile',390]]){
+ const page=await browser.newPage({viewport:{width,height:1100},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(origin);await page.locator('.lane').first().waitFor();await page.evaluate(()=>document.fonts.ready);
+ assert.equal(await page.locator('.lane').count(),3);
+ const options=await page.locator('#flow-task option').evaluateAll(nodes=>nodes.map(n=>n.value));assert.equal(options.length,2);
+ for(const [i,choice] of ['review standard','review deep'].entries()){
+  await page.locator('#flow-task').selectOption(options[i]);
+  assert.equal(await page.locator('#branch-choice').textContent(),choice);
+  assert.match(await page.locator('#branch-gate').textContent(),/Held/);
+  assert.equal(await page.locator('#branch-outcome').textContent(),'Local fallback · no reviewer dispatch');
+  assert.equal(await page.locator('.lane[data-preferred=true]').count(),1);
+  assert.equal(await page.locator('.lane[data-returned=true]').count(),1);
+  assert.match(await page.locator('.lane[data-returned=true]').textContent(),/Fallback/);
+  await page.locator('.instrument').evaluate(e=>e.scrollIntoView({block:'start',behavior:'instant'}));
+  await page.screenshot({path:`.impeccable/review/branches-${name}-${i+1}.png`});
+ }
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await page.getByRole('button',{name:'Start',exact:true}).click();
+ assert.equal(await page.locator('.lane').count(),3);
+ assert.equal(await page.locator('.lane[data-preferred=true]').count(),0);
+ assert.equal(await page.locator('.lane[data-returned=true]').count(),0);
+ assert.equal(await page.locator('#branch-choice').textContent(),'Not observed yet');
+ assert.ok(!(await page.locator('#branch-context').textContent()).includes('46%'));
+ const fixture=JSON.parse(fs.readFileSync('demo/web/replay.json','utf8'));
+ await page.route('**/replay.json',r=>r.fulfill({json:fixture}));await page.reload();await page.locator('.task-row').first().waitFor();
+ const uncertainTask=fixture.events.find(e=>e.kind==='task_uncertain').task_id;
+ await page.locator('#flow-task').selectOption(uncertainTask);
+ assert.equal(await page.locator('#branch-outcome').textContent(),'Unconfirmed · task remains uncertain');
+ assert.match(await page.locator('.lane[data-returned=true]').textContent(),/Uncertain/);
+ const deferredTask=fixture.events.find(e=>e.kind==='task_deferred').task_id;
+ await page.locator('#flow-task').selectOption(deferredTask);
+ assert.equal(await page.locator('#branch-outcome').textContent(),'Deferred before dispatch');
+ assert.equal(await page.locator('.lane[data-returned=true]').count(),0);
+ assert.deepEqual(errors,[]);results.push({name,candidate_branches:3,choices_distinct:true,gate_redirect_visible:true,rewind_hides_decisions:true,overflow:false,errors});await page.close();
+}fs.writeFileSync('.impeccable/review/branches-browser.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

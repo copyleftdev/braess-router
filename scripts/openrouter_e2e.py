@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic adapter and gateway integration; no external requests or API keys."""
 import argparse
+import base64
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -9,6 +10,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -33,16 +35,19 @@ def request(url, value=None):
         return {'status': response.status, 'body': json.loads(response.read())}
 
 
-def run(output, binary):
-    output.mkdir(parents=True, exist_ok=False)
+def run(output, binary, *, inspector=None):
+    output.mkdir(mode=0o700, parents=True, exist_ok=False)
     records, events, processes = [], [], []
     began, release = threading.Event(), threading.Event()
     class Fixture(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
         def do_POST(self):
-            body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-            events.append({'path': self.path, 'body': body, 'authorization_present': 'Authorization' in self.headers})
+            raw_body = self.rfile.read(int(self.headers['Content-Length']))
+            body = json.loads(raw_body)
+            events.append({'path': self.path, 'body': body, 'request_bytes':len(raw_body),
+                           'request_sha256':hashlib.sha256(raw_body).hexdigest(),
+                           'authorization_present': 'Authorization' in self.headers})
             text = body['messages'][0]['content']
             result = {'id': 'gen-fixture', 'object': 'chat.completion', 'model': body['model'], 'provider': 'Fixture',
                       'choices': [{'index': 0, 'finish_reason': 'stop', 'message': {'role': 'assistant', 'content': 'synthetic answer'}}],
@@ -103,12 +108,15 @@ def run(output, binary):
     def stop(p, force=False):
         (p.kill if force else p.terminate)()
         p.wait(timeout=5)
-    def fresh(name, cap=8):
+    def fresh(name, cap=8, vision=None):
         config = {'bind': f'127.0.0.1:{port()}', 'mode': 'mock', 'url': f'http://127.0.0.1:{fixture.server_port}/chat/completions',
                   'journal_path': str(output / (name + '.jsonl')), 'deadline_ms': 400, 'max_request_bytes': 4096,
                   'max_response_bytes': 8192, 'admission_limit': 1, 'max_calls': cap,
                   'routes': {r: {'model': 'fixture/' + r, 'provider': 'fixture', 'max_tokens': 16} for r in ('general', 'coding', 'reasoning')}}
         path = output / (name + '.json')
+        if vision:
+            config['vision_bundles'] = vision
+            for route in config['routes'].values(): route['input_mode'] = 'vision_reference'
         path.write_text(json.dumps(config, indent=2))
         assert command([str(binary), '--config', str(path), '--init']).returncode == 0
         return config, path
@@ -185,6 +193,102 @@ def run(output, binary):
             fallback = request(gateway_url + '/route', {'request': 'uncertain'})
             assert fallback['body']['route'] == 'fallback' and len(events) == before
             stop(gateway_process)
+            # A provisioned PNG is resolved only after the selected vision route.
+            image = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ1kAAAAASUVORK5CYII=')
+            image_hash = hashlib.sha256(image).hexdigest()
+            bundle = output/'vision-bundle'; bundle.mkdir()
+            (bundle/'page-1.png').write_bytes(image)
+            page = {'page':1,'sha256':image_hash,'bytes':len(image),'width':1,'height':1}
+            manifest = {'schema_version':1,'complete':True,'publication_approved':False,
+                        'document_id':'fixture-image','native_source_sha256':image_hash,
+                        'coordinate_unit':'source_page_pixels','pages':[{**page,'file':'page-1.png'}]}
+            raw = json.dumps(manifest).encode()
+            images = [image]
+            pages = [page]
+            if inspector is not None:
+                sys.path.insert(0,str(gateway.ROOT/'demo'))
+                from inspector_assets import load_bundle
+                assets = load_bundle(inspector)
+                raw = assets['evidence/manifest.json'][0]
+                manifest = json.loads(raw)
+                if not 1 <= len(manifest['pages']) <= 8:
+                    raise ValueError('transport experiment requires one to eight pages')
+                images = [assets['evidence/'+item['file']][0] for item in manifest['pages']]
+                if sum(map(len,images)) > 8*1024*1024:
+                    raise ValueError('transport experiment image byte bound exceeded')
+                pages = [{k:item[k] for k in ('page','sha256','width','height')} | {'bytes':len(data)}
+                         for item,data in zip(manifest['pages'],images)]
+                for item,data in zip(manifest['pages'],images):
+                    (bundle/item['file']).write_bytes(data)
+                page, image = pages[0], images[0]
+                image_hash = page['sha256']
+            (bundle/'manifest.json').write_bytes(raw)
+            manifest_hash = hashlib.sha256(raw).hexdigest()
+            vc,vp = fresh('vision',vision={manifest_hash:str(bundle)})
+            vision_process, vision_url = start(vp)
+            reference = {'schema_version':1,'kind':'vision_reference_v1','document_id':manifest['document_id'],
+                         'native_source_sha256':manifest['native_source_sha256'],'inspector_manifest_sha256':manifest_hash,
+                         'prompt':'Describe the source pages. Synthetic transport experiment only.','pages':pages}
+            before = len(events)
+            for changed in [{**reference,'document_id':'other'}, {**reference,'pages':[page,page]},
+                            {**reference,'inspector_manifest_sha256':'0'*64},
+                            {**reference,'pages':[{**page,'sha256':'0'*64}]},
+                            {**reference,'url':'https://untrusted.invalid/image.png'}]:
+                assert request(vision_url+'/generate/general',{'route':'general','request':json.dumps(changed)})['status']==400
+            assert request(vision_url+'/status')['body']['calls_reserved']==0 and len(events)==before
+            # The running process must keep the approved startup bytes immutable.
+            (bundle/'page-1.png').write_bytes(b'changed after startup')
+            gconfig['handlers']={r:[vision_url+'/generate/'+r] for r in vc['routes']}
+            gconfig['bind']=f'127.0.0.1:{port()}'
+            vgp=output/'vision-gateway.json'; vgp.write_text(json.dumps(gconfig))
+            vg,vgurl=start(vgp,binary.with_name('braess-router'))
+            reference_wire=json.dumps(reference)
+            vision_response=request(vgurl+'/route',{'request':reference_wire})
+            assert vision_response['status']==200 and vision_response['body']['route']=='general'
+            evidence=vision_response['body']['handler_response']['execution']['input_evidence']
+            assert evidence=={'reference_sha256':hashlib.sha256(reference_wire.encode()).hexdigest(),'image_sha256':[item['sha256'] for item in pages]}
+            parts=events[-1]['body']['messages'][0]['content']
+            assert parts[0]=={'type':'text','text':reference['prompt']}
+            assert len(parts)==1+len(images)
+            for part,expected in zip(parts[1:],images):
+                assert part['type']=='image_url'
+                assert base64.b64decode(part['image_url']['url'].split(',',1)[1],validate=True)==expected
+            # Capture another real local call through the demo observer contract.
+            sys.path.insert(0,str(gateway.ROOT/'demo'))
+            from recording import Recorder, verify
+            from observe import observe
+            from run_metrics import metrics
+            recording=Recorder(output/'vision-recording',scope='synthetic',metadata={})
+            try:
+                recording.append('task_queued','vision-fixture',document_id=manifest['document_id'],family_id=manifest['document_id'],modality='image')
+                observe(recording,'vision-fixture',vgurl+'/route',reference_wire)
+            finally:
+                recording.close()
+            captured=verify(output/'vision-recording')
+            assert captured['summary']['completed']==1
+            observed=[e['data'] for e in captured['events'] if e['kind']=='response_received'][0]
+            assert observed['generation_input_evidence']==evidence
+            analysis=metrics(output/'vision-recording',output/'vision-metrics.json')
+            assert analysis['tasks'][0]['generation_input_evidence']==evidence
+            (output/'vision-reference.json').write_text(reference_wire)
+            stop(vg); stop(vision_process)
+            assert command([str(binary),'--config',str(vp)]).returncode!=0
+            (bundle/'page-1.png').write_bytes(image)
+            restored,restored_url=start(vp)
+            assert request(restored_url+'/status')['body']['completed']==2
+            stop(restored)
+            journal_text=Path(vc['journal_path']).read_text()
+            assert image_hash in journal_text and reference['prompt'] not in journal_text and 'base64' not in journal_text
+            result['vision_source']={'kind':'verified private inspector' if inspector else 'synthetic one-pixel PNG',
+                                    'manifest_sha256':manifest_hash,'pages':pages,
+                                    'source_image_bytes':sum(map(len,images)),
+                                    'provider_request_bytes':events[-1]['request_bytes'],
+                                    'provider_request_sha256':events[-1]['request_sha256'],
+                                    'semantic_quality_evaluated':False,'publication_approved':False}
+            result['vision_response']=vision_response
+            result['vision_checks']=['invalid references refused before reservation','immutable source bytes',
+                                     'gateway to multipart handler','exact PNG round trip','source hashes in durable receipt',
+                                     'changed source refuses restart','observer and analysis retain bound image evidence']
         finally:
             jev.close()
         stop(p)
@@ -217,5 +321,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path)
     parser.add_argument('--binary', type=Path, required=True)
+    parser.add_argument('--inspector', type=Path, help='Private verified page bundle for local synthetic transport; no live calls')
     args = parser.parse_args()
-    run(args.output.resolve(), args.binary.resolve())
+    run(args.output.resolve(), args.binary.resolve(), inspector=args.inspector)

@@ -2,9 +2,9 @@ name: GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['site/**', 'scripts/check_site.py', 'scripts/test_site.py', '.github/workflows/pages.yml']
+    paths: ['site/**', 'scripts/check_site.py', 'scripts/test_site.py', 'scripts/build_discovery_site.py', 'demo/web/**', '.github/workflows/pages.yml']
   pull_request:
-    paths: ['site/**', 'scripts/check_site.py', 'scripts/test_site.py', '.github/workflows/pages.yml']
+    paths: ['site/**', 'scripts/check_site.py', 'scripts/test_site.py', 'scripts/build_discovery_site.py', 'demo/web/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,8 @@ jobs:
       - name: Validate and stage public assets
         run: |
           python3 scripts/test_site.py
+          python3 scripts/build_discovery_site.py --check
+          node --check site/discovery/app.js
           node --check site/app.js
           node --check site/traffic-data.js
           python3 scripts/check_site.py --stage "$RUNNER_TEMP/braess-site"

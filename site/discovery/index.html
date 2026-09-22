@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080808"><meta name="robots" content="index, follow">
+<title>Discovery showcase — Braess Router</title>
+<meta name="description" content="Explore four synthetic discovery tasks through Braess Router: review routes, fallback, validation and budget deferral in a recorded execution.">
+<link rel="canonical" href="https://copyleftdev.github.io/braess-router/discovery/index.html">
+<link rel="icon" href="../assets/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css"><script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#controls">Skip to replay controls</a>
+<header><a class="brand" href="../index.html#discovery"><img src="../assets/mark.svg" alt="" width="30" height="30">braess <span>/ discovery</span></a><a href="https://github.com/copyleftdev/braess-router">GitHub <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16 16 4M5 4h11v11"/></svg></a></header>
+<main>
+<section class="intro"><h1>A document arrives.<br><span>Which review next?</span></h1><div class="scope"><p>Discovery means finding the material that matters in a collection of documents.</p><p>Here, a review workflow asks Braess to choose where each task goes. Follow the decision, the checks and the recorded result.</p><p id="scope">Loading the recorded run…</p><p class="run-id" id="run-id"></p></div></section>
+<section class="showcase-guide" aria-label="About this discovery showcase"><p><strong>Four tasks. One recorded experiment.</strong> Scripted Jev decisions exercise standard review, deeper review and local fallback. A fourth task stops at its budget limit. The router and adapter ran locally; providers and documents are synthetic.</p><p><strong>Read the branches.</strong> Dashed paths show candidate routes; the solid path shows the recorded outcome. Choose a task, then use Start and Play replay to follow its events. Each task takes one outcome path.</p><p><strong>Inspect the result.</strong> One review passed source-span validation, one remained uncertain, one returned locally and one was deferred. Validation checks evidence structure, not legal accuracy. This page makes no model calls and contains no private documents.</p></section>
+<section class="instrument" aria-label="Recorded routing activity">
+<div class="instrument-top"><span id="scope-label">Loading evidence</span><label class="flow-select">Inspect <select id="flow-task" aria-label="Task in routing diagram"></select></label><span id="event-count">—</span></div>
+<div class="stage"><canvas id="flow" aria-hidden="true"></canvas><div class="intake">Recorded tasks<span id="task-total">—</span></div><div class="aperture"><strong>BRAESS</strong><span>ROUTING GATE</span></div><div id="lanes"></div></div>
+<div class="branch-legend"><span><i class="candidate-key" aria-hidden="true"></i>Candidate route</span><span><i class="returned-key" aria-hidden="true"></i>Recorded outcome</span><span>Crossed endpoint: preference held by gate</span></div>
+<div class="branch-story" aria-label="Selected task routing decision"><div><span>Jev preference</span><strong id="branch-choice">Not observed yet</strong></div><div><span>Policy gate</span><strong id="branch-gate">Not observed yet</strong></div><div><span>Recorded outcome</span><strong id="branch-outcome">Not observed yet</strong></div></div>
+<p id="branch-context" class="path-note"></p><p class="path-note">Paths illustrate decisions, not extra dispatches or fan-out. Scores and gate results appear with the recorded response; gateway timings are shown separately below.</p>
+<div id="controls" class="controls"><button id="play" disabled>Play replay</button><button id="reset" disabled>Start</button><label class="scrubber">Recorded time<input type="range" id="seek" min="0" max="1000" value="1000" disabled aria-label="Recorded time"></label><output id="time">—</output><label class="speed">Speed<select id="speed"><option value="0.001">0.001×</option><option value="0.01" selected>0.01×</option><option value="0.1">0.1×</option><option value="1">1×</option></select></label></div>
+<div class="run-summary" aria-live="off"><p><strong id="completed">—</strong> completed</p><p><strong id="uncertain">—</strong> uncertain</p><p><strong id="deferred">—</strong> deferred</p><p><strong id="pending">—</strong> pending</p><p>Total cost <strong id="cost">Not reported</strong></p></div>
+<p id="status" role="status" class="status">Loading replay data. No provider calls are made by this page.</p>
+</section>
+<section class="route-comparison" aria-labelledby="comparison-heading">
+<div class="section-title"><h2 id="comparison-heading">Across the routes</h2><span id="comparison-clock">Waiting for observations</span></div>
+<p>Compare the work visible at this point in the recording. Timing medians describe this sample; they do not establish a speedup.</p>
+<div id="route-comparison"></div>
+<p id="comparison-unrouted"></p>
+<p class="comparison-note">Jev and handler intervals include transport and validation. Missing intervals remain unknown. Inspect a task below for cost receipts; total cost and savings are not established.</p>
+</section>
+<section class="review" aria-label="Task evidence">
+  <div class="task-index">
+    <div class="section-title"><h2>The record</h2><span>Choose a task to inspect</span></div>
+    <div id="tasks"></div>
+    <p class="record-note">A handler completion confirms a returned result. It does not establish review accuracy.</p>
+    <section class="decision-study" aria-labelledby="decision-heading">
+      <h2 id="decision-heading">Why this route</h2>
+      <p id="decision-summary">Select a recorded task to inspect its decision.</p>
+      <div id="route-scores" aria-label="Recorded route probabilities"></div>
+      <dl id="gate-scores"></dl>
+      <p id="score-note" class="study-note" hidden>Scores come from the synthetic Jev fixture. They do not measure legal accuracy.</p>
+      <h3>Inside the gateway</h3>
+      <p id="timing-summary">No timing evidence selected.</p>
+      <div id="stage-times"></div>
+      <p class="study-note">Offsets use the gateway’s own clock. Send-to-validation intervals include local overhead. Missing endpoints remain unknown.</p>
+    </section>
+  </div>
+  <aside class="evidence" aria-label="Selected task details">
+    <div class="evidence-heading"><h2 id="selected-title">Select a task</h2><span id="selected-state"></span></div>
+    <p id="selected-description">The original event sequence will appear here.</p>
+    <dl id="facts"></dl><section id="submitted-pages" hidden aria-labelledby="submitted-heading"><h3 id="submitted-heading">Submitted scan pages</h3><p id="submitted-status" role="status"></p><div id="submitted-actions"></div></section><section id="linked-findings" hidden aria-labelledby="findings-heading"><h3 id="findings-heading">Source-linked findings</h3><p id="findings-status" role="status"></p><div id="finding-list"></div></section><h3>Observed sequence</h3><ol id="sequence"></ol>
+    <details><summary>Provenance</summary><p id="provenance"></p></details>
+  </aside>
+</section>
+<footer><span>Replay, not live inference.</span><a href="replay.json" download>Download recorded events <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 16h12"/></svg></a></footer>
+</main><noscript><p class="noscript">Enable JavaScript to explore the replay, or <a href="replay.json">read the recorded events</a>.</p></noscript>
+</body></html>

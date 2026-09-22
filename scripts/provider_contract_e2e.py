@@ -117,7 +117,18 @@ def run(output, binary):
                 e.require(not events[0]['authorization_present'], 'mock gateway forwarded credentials')
                 if case['status'] >= 400:
                     e.require(response['status'] == 502, 'provider error was not translated to a gateway error')
-                    e.require(response['body'] == {'error': 'jev_transport_error'}, 'provider error details escaped')
+                    body = response['body']
+                    e.require(set(body) == {'error','routing_trace'} and body['error'] == 'jev_transport_error',
+                              'provider error details escaped')
+                    trace = body['routing_trace']
+                    e.require(set(trace) == {'decision_send_started_ns','decision_validated_ns',
+                              'handler_send_started_ns','handler_validated_ns','finished_ns','decision'},
+                              'unexpected error telemetry fields')
+                    e.require(all(trace[k] is None for k in ('decision_validated_ns','handler_send_started_ns',
+                              'handler_validated_ns','decision')), 'provider error falsely validated or dispatched')
+                    e.require(type(trace['decision_send_started_ns']) is int and type(trace['finished_ns']) is int
+                              and 0 <= trace['decision_send_started_ns'] <= trace['finished_ns'],
+                              'invalid provider error timing')
                     e.require(state['request_journal']['pending'] == 1, 'provider error discarded uncertainty')
                     e.require(len(events) == 1 and not handlers.events, 'provider error dispatched to a handler')
                 else:

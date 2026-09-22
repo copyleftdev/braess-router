@@ -251,12 +251,14 @@ mod tests {
             max_response_bytes: 4096,
             admission_limit: 1,
             max_calls: 2,
+            vision_bundles: BTreeMap::new(),
             routes: BTreeMap::from([(
                 "general".into(),
                 super::super::Route {
                     model: "fixture/general".into(),
                     provider: "fixture".into(),
                     max_tokens: 8,
+                    input_mode: super::super::InputMode::Text,
                 },
             )]),
         };
@@ -274,6 +276,7 @@ mod tests {
             provider: None,
             generation_id: "gen-fixture".into(),
             finish_reason: "stop".into(),
+            input_evidence: None,
             usage: super::super::Usage {
                 prompt_tokens: 1,
                 completion_tokens: 1,
