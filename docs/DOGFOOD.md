@@ -3,8 +3,9 @@
 Status: experiment plan, 2026-09-21. A bounded local fleet, OCR evidence linkage,
 metadata replay and synthetic film draft now exist under `demo/`; this document
 retains the broader real, paid experiment requirements, which remain incomplete.
-Working interpretation: litigation-defense discovery. Pilot dollar cap awaits
-user selection. Planning and offline development can proceed without paid calls.
+Working interpretation: litigation-defense discovery. The first two-document pilot used a selected $5 allowance and returned two live
+Jev abstentions, with zero generation calls; see [the pilot report](../demo/PILOT.md#first-funded-pilot-two-live-abstentions).
+The matched quality experiment and further paid calls remain unapproved and incomplete.
 
 ## The experiment
 

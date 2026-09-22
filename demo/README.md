@@ -72,7 +72,8 @@ scripted providers, recording exact request and page hashes.
 The [bounded fleet runner](FLEET.md) now connects prepared tasks to actual Braess
 and OpenRouter-adapter execution, private response capture, source-span validation
 and replay events. Its offline full-path test distinguishes validated findings,
-fabricated quotes and budget deferrals. Real-corpus paid execution is still pending.
+fabricated quotes and budget deferrals. The first two-document live pilot reached Jev and returned two local fallbacks;
+no paid reviewer was dispatched. See [the measured outcome](PILOT.md#first-funded-pilot-two-live-abstentions).
 
 ## Human assessment
 
@@ -86,7 +87,8 @@ human assessments have been recorded yet.
 The observer can now reserve from a durable, concurrent run-level ledger before
 dispatch. Live scope requires that ledger. Unknown charges remain reserved, and
 estimate overruns freeze further admission. [Behavior, evidence and remaining
-pricing work](BUDGET.md). The pilot dollar cap is still awaiting selection.
+pricing work](BUDGET.md). The first pilot used the selected $5 allowance; its reservations remain unresolved
+pending complete billing reconciliation.
 
 ## Explore the recorded replay
 

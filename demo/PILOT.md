@@ -43,8 +43,9 @@ personal contact details. Reviewers receive text, including OCR uncertainty;
 no native image pixels are sent to a provider.
 
 The saved pricing evidence yields a total admission reservation of $1.909436034.
-No spending allowance has been selected. The plan remains
-`prepared_not_authorized`, and its actual journals and budgets are uninitialized.
+At preparation, no spending allowance had been selected. The immutable plan
+retains its `prepared_not_authorized` preparation status; the later execution
+claim records the selected $5 allowance and the attempt described below.
 A separate `config-check` copy passed the actual Rust adapter, Jev-budget and
 request-journal create-only initializers with no credentials, service startup or
 inference. `config-verification.json` records those binary hashes and exit codes.
@@ -53,7 +54,7 @@ response contracts.
 
 ## Remaining before execution
 
-Select the pilot's spending allowance; refresh expired price evidence; reverify
+For a newly authorized pilot, select its spending allowance; refresh expired price evidence; reverify
 this plan immediately before startup; initialize fresh durable call limits and a
 shared monetary ledger bound to `pricing.json`; and run the two tasks once with
 private captures. The execution coordinator described below enforces this preflight and records
@@ -90,7 +91,8 @@ own checks immediately before dispatch; a saved readiness report cannot bypass
 those checks.
 
 The current local binaries passed this offline check with the two-document plan.
-The real plan remains unattempted, with no selected allowance. Tests verify that
+That readiness snapshot preceded the funded run below; it is historical evidence,
+not permission to rerun the attempted plan. Tests verify that
 readiness leaves plan bytes unchanged, refuses an attempted plan, protects its
 output from overwrite and never invokes process startup or endpoint checks.
 
@@ -129,5 +131,38 @@ unknown dispatch results and credential isolation. A separate local startup-only
 check used the actual Rust binaries and dummy credentials, replacing fleet dispatch
 with a no-request callback. Both services initialized, answered health checks and
 stopped; monetary attempts and provider calls were zero. This checks process
-orchestration, not the live provider contract. No real pilot has run yet, and the
-allowance question remains unanswered.
+orchestration, not the live provider contract. That startup-only check preceded the real pilot below.
+
+## First funded pilot: two live abstentions
+
+The user selected a $5 allowance. On 2026-09-22 UTC, the coordinator verified the
+still-current price evidence and actual executable hashes, initialized the fresh
+journals, and executed the two prepared text/OCR tasks once. Run
+`bc53e7c8-505a-460a-a895-9961c612382e` is sealed with live scope. The original plan
+was not rewritten; `execution.json` binds its hash to the selected allowance.
+
+| Task position | Jev choice | Chosen probability | Confidence | Supported | Gate result |
+| --- | --- | --- | --- | --- | --- |
+| First | review_standard | 0.77 | 0.65 | 0.94 | fallback / uncertain |
+| Second | review_deep | 0.64 | 0.46 | 0.95 | fallback / uncertain |
+
+Both decisions fell below the configured 0.8 probability/confidence thresholds.
+The gateway returned local fallback for both. The adapter's post-run inspection
+reported zero reserved or completed generation calls. No OpenRouter reviewer ran,
+no findings were validated, and no automatic retry occurred. Completed fallback
+requests are not completed legal reviews.
+
+Jev reported 3,910 input and 119 output tokens. Multiplying input usage by the
+saved direct-TypeSafe input rate gives $0.000164220, a price-based estimate rather
+than an invoice receipt. The $1.909436034 combined admission reservation remains
+unresolved in the $5 ledger; it is not a measured charge. Complete billing
+reconciliation is still pending.
+
+The run has a verified private 11-file replay package, route metrics and a
+human-review queue with two unresolved entries. Desktop/mobile browser checks
+confirm live scope, the actual decision choices, fallback behavior and rewind
+clearing. Captures and source artifacts remain ignored and unpublished. This run
+establishes the live Jev/gateway abstention path, not reviewer quality, image
+understanding or OpenRouter's live generation contract. Do not lower thresholds
+or reuse this claimed plan to manufacture successful review footage. Further
+calibration or a new experiment needs its own explicit scope and call allowance.
